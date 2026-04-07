@@ -23,7 +23,8 @@ export function AuthProvider({ children }) {
   }, [checkAuth]);
 
   const login = async (email, password) => {
-    const { data } = await authAPI.login({ email, password });
+    await authAPI.login({ email, password });
+    const { data } = await authAPI.me();
     setUser(data.user);
     return data.user;
   };

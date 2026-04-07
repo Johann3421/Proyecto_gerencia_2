@@ -28,7 +28,7 @@ router.post('/login', async (req, res) => {
     // Update last access
     await query('UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = $1', [user.id]);
 
-    const payload = { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol, area: user.area, avatar_url: user.avatar_url };
+    const payload = { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol, area: user.area };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
     const refreshToken = jwt.sign({ id: user.id }, JWT_REFRESH_SECRET, { expiresIn: '7d' });

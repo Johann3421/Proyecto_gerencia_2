@@ -88,6 +88,7 @@ export const usuariosAPI = {
   getAll: (params) => api.get('/usuarios', { params }),
   create: (data) => api.post('/usuarios', data),
   update: (id, data) => api.put(`/usuarios/${id}`, data),
+  updateMe: (data) => api.put('/usuarios/me', data),
   toggle: (id) => api.put(`/usuarios/${id}/toggle`),
 };
 

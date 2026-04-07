@@ -10,15 +10,19 @@ import Modal from '../components/ui/Modal';
 const formatDate = (d) => d ? new Date(d).toLocaleString('es-PE') : 'Nunca';
 
 export default function Usuarios() {
-  const { isSuperAdmin, canDelete } = useAuth();
+  const { user, isSuperAdmin, canDelete } = useAuth();
   const { search } = useSearch();
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(1);
-  
+  const [tab, setTab] = useState(isSuperAdmin || canDelete ? 'directorio' : 'perfil');
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ nombre: '', email: '', password: '', rol: 'OPERARIO', area: 'ADMINISTRACION' });
+
+  // Profile Form state
+  const [profileForm, setProfileForm] = useState({ nombre: user?.nombre || '', password: '', avatar_url: user?.avatar_url || '' });
+  const [profileLoading, setProfileLoading] = useState(false);
 
   const fetchUsers = async (p = 1) => {
     const { data } = await usuariosAPI.getAll({ page: p });
@@ -28,8 +32,23 @@ export default function Usuarios() {
   };
 
   useEffect(() => {
-    fetchUsers(page);
-  }, [page]);
+    if (tab === 'directorio') fetchUsers(page);
+  }, [page, tab]);
+
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    setProfileLoading(true);
+    try {
+      await usuariosAPI.updateMe(profileForm);
+      alert('Perfil actualizado correctamente. Los cambios se reflejarán completamente en tu próxima sesión.');
+      // Update local state if needed via window location reload or context update
+      window.location.reload();
+    } catch (err) {
+      alert('Error actualizando perfil');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   const toggleStatus = async (e, id) => {
     e.stopPropagation();
@@ -58,9 +77,13 @@ export default function Usuarios() {
 
   const cols = [
     { key: 'avatar', label: '', width: '40px', render: (_, r) => (
-      <div className="avatar sm" style={{ background: getAvatarColor(r.nombre), display: 'inline-flex' }}>
-        {getInitials(r.nombre)}
-      </div>
+      r.avatar_url ? (
+        <div className="avatar sm" style={{ backgroundImage: `url(${r.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center', display: 'inline-flex' }}></div>
+      ) : (
+        <div className="avatar sm" style={{ background: getAvatarColor(r.nombre), display: 'inline-flex' }}>
+          {getInitials(r.nombre)}
+        </div>
+      )
     )},
     { key: 'nombre', label: 'Nombre' },
     { key: 'email', label: 'Email', mono: true },
@@ -86,51 +109,107 @@ export default function Usuarios() {
         </div>
       </div>
 
-      <div className="dashboard-grid">
-        <Panel title="Directorio de Cuentas" className="flex-1" actions={canDelete && <Button variant="primary" onClick={() => setShowModal(true)}>Nueva Cuenta</Button>}>
-          <DataTable columns={cols} data={users.filter(u => !search || u.nombre?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()) || u.rol?.toLowerCase().includes(search.toLowerCase()))} page={page} totalPages={total} total={total*10} onPageChange={setPage} />
-        </Panel>
-
-        <Panel title="Jerarquía de Roles">
-          <div className="role-hierarchy">
-            <div className="role-card" style={{ background: 'var(--bg-secondary)' }}>
-              <div className="role-icon" style={{ background: '#E6F1FB', color: '#0C447C' }}>S</div>
-              <div>
-                <div className="role-name">Super Admin</div>
-                <div className="role-desc">Acceso total sin restricciones</div>
-              </div>
-            </div>
-            <div className="role-card" style={{ background: 'var(--bg-secondary)' }}>
-              <div className="role-icon" style={{ background: '#E1F5EE', color: '#085041' }}>A</div>
-              <div>
-                <div className="role-name">Admin Área</div>
-                <div className="role-desc">Maneja transacciones en su área asignada</div>
-              </div>
-            </div>
-            <div className="role-card" style={{ background: 'var(--bg-secondary)' }}>
-              <div className="role-icon" style={{ background: '#F3E8FF', color: '#5B21B6' }}>V</div>
-              <div>
-                <div className="role-name">Supervisor</div>
-                <div className="role-desc">Aprueba flujos de mayor impacto</div>
-              </div>
-            </div>
-            <div className="role-card" style={{ background: 'var(--bg-secondary)' }}>
-              <div className="role-icon" style={{ background: '#FAEEDA', color: '#633806' }}>O</div>
-              <div>
-                <div className="role-name">Operario</div>
-                <div className="role-desc">Ingresa y edita datos básicos</div>
-              </div>
-            </div>
-            <div className="role-card" style={{ background: 'var(--bg-secondary)' }}>
-              <div className="role-icon" style={{ background: '#F4F4F2', color: '#555555' }}>D</div>
-              <div>
-                <div className="role-name">Auditor</div>
-                <div className="role-desc">Solo lectura en toda la plataforma</div>
-              </div>
-            </div>
-          </div>
-        </Panel>
+      <div className="tabs">
+        <div className={`tab ${tab === 'perfil' ? 'active' : ''}`} onClick={() => setTab('perfil')}>Mi Perfil</div>
+        {(isSuperAdmin || canDelete) && (
+          <div className={`tab ${tab === 'directorio' ? 'active' : ''}`} onClick={() => setTab('directorio')}>Directorio de Cuentas</div>
+        )}
       </div>
+
+      {tab === 'perfil' && (
+        <div className="dashboard-grid">
+          <Panel title="Configuración de Cuenta" className="flex-1">
+            <form onSubmit={handleProfileSubmit} style={{ maxWidth: '500px' }}>
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '24px' }}>
+                {profileForm.avatar_url ? (
+                  <div className="avatar" style={{ width: '80px', height: '80px', fontSize: '24px', backgroundImage: `url(${profileForm.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+                ) : (
+                  <div className="avatar" style={{ width: '80px', height: '80px', fontSize: '24px', background: getAvatarColor(user?.nombre || '') }}>
+                    {getInitials(profileForm.nombre || user?.nombre || '')}
+                  </div>
+                )}
+                <div style={{ flex: 1 }}>
+                  <label className="form-label">URL Foto de Perfil</label>
+                  <input type="url" className="form-input" placeholder="https://ejemplo.com/mifoto.jpg" value={profileForm.avatar_url} onChange={e => setProfileForm({...profileForm, avatar_url: e.target.value})} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Email (No Editable)</label>
+                <input type="email" className="form-input" value={user?.email || ''} readOnly disabled style={{ background: 'var(--bg-secondary)', color: 'var(--text-tertiary)' }} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Nombre de Usuario</label>
+                <input type="text" className="form-input" value={profileForm.nombre} required onChange={e => setProfileForm({...profileForm, nombre: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Nueva Contraseña (Opcional)</label>
+                <input type="password" className="form-input" placeholder="Dejar en blanco para mantener actual..." value={profileForm.password} onChange={e => setProfileForm({...profileForm, password: e.target.value})} />
+              </div>
+              <div style={{ marginTop: '24px' }}>
+                <Button type="submit" variant="primary" disabled={profileLoading}>{profileLoading ? 'Guardando...' : 'Actualizar Cuenta'}</Button>
+              </div>
+            </form>
+          </Panel>
+          <Panel title="Mi Rol y Accesos">
+            <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '8px', marginBottom: '16px' }}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: 'var(--text-tertiary)' }}>Área Asignada</h4>
+              <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{user?.area || 'Global'}</div>
+            </div>
+            <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: 'var(--text-tertiary)' }}>Nivel de Acceso</h4>
+              <span className={`role-badge ${getRoleBadgeClass(user?.rol)}`}>{formatRol(user?.rol)}</span>
+            </div>
+          </Panel>
+        </div>
+      )}
+
+      {tab === 'directorio' && (
+        <div className="dashboard-grid">
+          <Panel title="Directorio de Cuentas" className="flex-1" actions={canDelete && <Button variant="primary" onClick={() => setShowModal(true)}>Nueva Cuenta</Button>}>
+            <DataTable columns={cols} data={users.filter(u => !search || u.nombre?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()) || u.rol?.toLowerCase().includes(search.toLowerCase()))} page={page} totalPages={total} total={total*10} onPageChange={setPage} />
+          </Panel>
+
+          <Panel title="Jerarquía de Roles">
+            <div className="role-hierarchy">
+              <div className="role-card" style={{ background: 'var(--bg-secondary)' }}>
+                <div className="role-icon" style={{ background: '#E6F1FB', color: '#0C447C' }}>S</div>
+                <div>
+                  <div className="role-name">Super Admin</div>
+                  <div className="role-desc">Acceso total sin restricciones</div>
+                </div>
+              </div>
+              <div className="role-card" style={{ background: 'var(--bg-secondary)' }}>
+                <div className="role-icon" style={{ background: '#E1F5EE', color: '#085041' }}>A</div>
+                <div>
+                  <div className="role-name">Admin Área</div>
+                  <div className="role-desc">Maneja transacciones en su área asignada</div>
+                </div>
+              </div>
+              <div className="role-card" style={{ background: 'var(--bg-secondary)' }}>
+                <div className="role-icon" style={{ background: '#F3E8FF', color: '#5B21B6' }}>V</div>
+                <div>
+                  <div className="role-name">Supervisor</div>
+                  <div className="role-desc">Aprueba flujos de mayor impacto</div>
+                </div>
+              </div>
+              <div className="role-card" style={{ background: 'var(--bg-secondary)' }}>
+                <div className="role-icon" style={{ background: '#FAEEDA', color: '#633806' }}>O</div>
+                <div>
+                  <div className="role-name">Operario</div>
+                  <div className="role-desc">Ingresa y edita datos básicos</div>
+                </div>
+              </div>
+              <div className="role-card" style={{ background: 'var(--bg-secondary)' }}>
+                <div className="role-icon" style={{ background: '#F4F4F2', color: '#555555' }}>D</div>
+                <div>
+                  <div className="role-name">Auditor</div>
+                  <div className="role-desc">Solo lectura en toda la plataforma</div>
+                </div>
+              </div>
+            </div>
+          </Panel>
+        </div>
+      )}
 
       {showModal && (
         <Modal title="Alta de Nueva Cuenta" onClose={() => setShowModal(false)}>

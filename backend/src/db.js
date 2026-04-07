@@ -73,6 +73,7 @@ const initDB = async () => {
       nombre VARCHAR(120) NOT NULL,
       email VARCHAR(180) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
+      avatar_url TEXT,
       rol rol_enum NOT NULL DEFAULT 'OPERARIO',
       area area_enum,
       activo BOOLEAN DEFAULT TRUE,
@@ -80,6 +81,12 @@ const initDB = async () => {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+
+    DO $$ BEGIN
+      ALTER TABLE usuarios ADD COLUMN avatar_url TEXT;
+    EXCEPTION WHEN duplicate_column THEN
+      NULL;
+    END $$;
 
     /* ── ACTIVITY LOG ── */
     CREATE TABLE IF NOT EXISTS activity_log (

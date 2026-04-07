@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
     params.push(limit, offset);
 
     const result = await query(
-      `SELECT id, nombre, email, rol, area, activo, ultimo_acceso, created_at
+      `SELECT id, nombre, email, rol, area, activo, ultimo_acceso, created_at, avatar_url
        FROM usuarios ${where} ORDER BY nombre LIMIT $${idx} OFFSET $${idx + 1}`,
       params
     );
@@ -55,6 +55,31 @@ router.post('/', writeGuard, requireRole('SUPER_ADMIN', 'ADMIN_AREA'), async (re
     res.status(201).json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Error creando usuario' });
+  }
+});
+
+/* PUT /api/usuarios/me */
+router.put('/me', async (req, res) => {
+  try {
+    const { nombre, password, avatar_url } = req.body;
+    let hashClause = '';
+    let params = [nombre, avatar_url, req.user.id];
+
+    if (password) {
+      const password_hash = await bcrypt.hash(password, 10);
+      hashClause = `, password_hash=$4`;
+      params.push(password_hash);
+    }
+
+    const result = await query(
+      `UPDATE usuarios SET nombre=COALESCE($1,nombre), avatar_url=COALESCE($2,avatar_url), updated_at=NOW() ${hashClause}
+       WHERE id=$3 RETURNING id, nombre, email, rol, area, avatar_url, activo`,
+      params
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error actualizando tu perfil' });
   }
 });
 

@@ -28,7 +28,7 @@ router.post('/login', async (req, res) => {
     // Update last access
     await query('UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = $1', [user.id]);
 
-    const payload = { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol, area: user.area };
+    const payload = { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol, area: user.area, avatar_url: user.avatar_url };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
     const refreshToken = jwt.sign({ id: user.id }, JWT_REFRESH_SECRET, { expiresIn: '7d' });
@@ -72,7 +72,7 @@ router.post('/logout', verifyToken, (req, res) => {
 router.get('/me', verifyToken, async (req, res) => {
   try {
     const result = await query(
-      'SELECT id, nombre, email, rol, area, activo, ultimo_acceso FROM usuarios WHERE id = $1',
+      'SELECT id, nombre, email, rol, area, activo, ultimo_acceso, avatar_url FROM usuarios WHERE id = $1',
       [req.user.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' });

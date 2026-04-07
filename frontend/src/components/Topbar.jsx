@@ -1,5 +1,6 @@
 import { useAuth } from '../hooks/useAuth';
 import { useState, createContext, useContext, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export const SearchContext = createContext({ search: '', setSearch: () => {} });
 export const useSearch = () => useContext(SearchContext);
@@ -48,6 +49,7 @@ export function formatRol(rol) {
 export default function Topbar() {
   const { user, logout } = useAuth();
   const { search, setSearch } = useSearch();
+  const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
   
@@ -116,15 +118,16 @@ export default function Topbar() {
         {/* User Menu */}
         {user && (
           <div style={{ position: 'relative' }}>
-            <div className="topbar-user" id="user-menu" onClick={() => { setShowMenu(!showMenu); setShowNotif(false); }} style={{ cursor: 'pointer', padding: '4px', borderRadius: '8px', transition: 'background 0.2s' }}>
-              <div
-                className="avatar"
-                style={{ background: getAvatarColor(user.nombre) }}
-              >
-                {getInitials(user.nombre)}
-              </div>
+            <div className="topbar-user" id="user-menu" onClick={() => { setShowMenu(!showMenu); setShowNotif(false); }} style={{ cursor: 'pointer', padding: '4px', borderRadius: '8px', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {user?.avatar_url ? (
+                <div className="avatar" style={{ backgroundImage: `url(${user.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+              ) : (
+                <div className="avatar" style={{ background: getAvatarColor(user?.nombre || '') }}>
+                  {getInitials(user?.nombre || '')}
+                </div>
+              )}
               <div>
-                <div className="user-name">{user.nombre}</div>
+                <div className="user-name">{user?.nombre || 'Usuario'}</div>
                 <span className={`role-badge ${getRoleBadgeClass(user.rol)}`}>
                   {formatRol(user.rol)}
                 </span>
@@ -146,6 +149,19 @@ export default function Topbar() {
                   <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{user.email}</div>
                 </div>
                 <div style={{ padding: '8px' }}>
+                  <button onClick={() => { setShowMenu(false); navigate('/usuarios'); }} style={{
+                    width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', 
+                    border: 'none', color: 'var(--text-secondary)', fontSize: '13px', borderRadius: '4px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, marginBottom: '4px'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-tertiary)'}
+                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    Mi Perfil
+                  </button>
                   <button onClick={logout} style={{
                     width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', 
                     border: 'none', color: '#DC2626', fontSize: '13px', borderRadius: '4px', cursor: 'pointer',

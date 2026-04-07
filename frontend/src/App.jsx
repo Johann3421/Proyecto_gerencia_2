@@ -71,7 +71,7 @@ export default function App() {
             } />
             
             <Route path="usuarios" element={
-              <RequireAuth roles={['SUPER_ADMIN', 'ADMIN_AREA']}><Usuarios /></RequireAuth>
+              <RequireAuth><Usuarios /></RequireAuth>
             } />
             <Route path="reportes" element={<Reportes />} />
           </Route>

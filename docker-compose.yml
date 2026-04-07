@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nexo_erp}
+      POSTGRES_USER: ${POSTGRES_USER:-nexo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexo_secret_2026}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nexo} -d ${POSTGRES_DB:-nexo_erp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: nexo-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-nexo}:${POSTGRES_PASSWORD:-nexo_secret_2026}@postgres:5432/${POSTGRES_DB:-nexo_erp}
+      JWT_SECRET: ${JWT_SECRET:-nexo_jwt_super_secret_key_2026}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-nexo_jwt_refresh_secret_key_2026}
+      PORT: 3001
+      NODE_ENV: ${NODE_ENV:-production}
+    ports:
+      - "3001:3001"
+
+  frontend:
+    build: ./frontend
+    container_name: nexo-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:

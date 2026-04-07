@@ -893,7 +893,7 @@ export default function Administracion() {
   const txCols = [
     { key: 'fecha', label: 'Fecha', render: formatDate },
     { key: 'tipo', label: 'Tipo', render: v => <StatusPill status={v} /> },
-    { key: 'monto', label: 'Monto', render: formatCurrency },
+    { key: 'monto', label: 'Monto', render: v => formatCurrency(v) },
     { key: 'descripcion', label: 'Descripción' },
     { key: 'area', label: 'Área' },
   ];
@@ -903,7 +903,7 @@ export default function Administracion() {
     { key: 'dni', label: 'DNI', mono: true },
     { key: 'cargo', label: 'Cargo' },
     { key: 'area', label: 'Área' },
-    { key: 'salario', label: 'Salario', render: formatCurrency },
+    { key: 'salario', label: 'Salario', render: v => formatCurrency(v) },
     { key: 'activo', label: 'Estado', render: v => <StatusPill status={v ? 'ACTIVO' : 'INACTIVO'} /> },
   ];
 

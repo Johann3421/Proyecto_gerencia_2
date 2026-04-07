@@ -162,4 +162,135 @@ router.post('/clientes', writeGuard, async (req, res) => {
   }
 });
 
+/* ── MARKETING ── */
+router.get('/campanas-marketing', async (req, res) => {
+  try {
+    const { estado, page = 1 } = req.query;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+    let where = [];
+    let params = [];
+    let idx = 1;
+    if (estado) { where.push(`estado = $${idx++}`); params.push(estado); }
+    const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
+    const [countRes, statsRes] = await Promise.all([
+      query(`SELECT COUNT(*) FROM campanas_marketing ${whereClause}`, params),
+      query(`SELECT COUNT(*) as total,
+        COUNT(*) FILTER (WHERE estado='ACTIVA') as activas,
+        COALESCE(SUM(presupuesto),0) as presupuesto,
+        COALESCE(SUM(gasto_actual),0) as gasto
+        FROM campanas_marketing`),
+    ]);
+    const total = parseInt(countRes.rows[0].count);
+    params.push(limit, offset);
+    const result = await query(
+      `SELECT * FROM campanas_marketing ${whereClause} ORDER BY created_at DESC LIMIT $${idx++} OFFSET $${idx}`,
+      params
+    );
+    res.json({ data: result.rows, total, page: parseInt(page), totalPages: Math.ceil(total / limit), stats: statsRes.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error obteniendo campañas' });
+  }
+});
+
+router.post('/campanas-marketing', writeGuard, async (req, res) => {
+  try {
+    const { nombre, tipo, descripcion, presupuesto, fecha_inicio, fecha_fin } = req.body;
+    if (!nombre) return res.status(400).json({ error: 'Nombre es requerido' });
+    const countRes = await query('SELECT COUNT(*) FROM campanas_marketing');
+    const folio = `MK-${String(parseInt(countRes.rows[0].count) + 1).padStart(5, '0')}`;
+    const result = await query(
+      `INSERT INTO campanas_marketing (folio, nombre, tipo, descripcion, presupuesto, fecha_inicio, fecha_fin)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [folio, nombre, tipo || 'DIGITAL', descripcion || null,
+       parseFloat(presupuesto) || 0, fecha_inicio || new Date(), fecha_fin || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error creando campaña' });
+  }
+});
+
+router.put('/campanas-marketing/:id/estado', writeGuard, async (req, res) => {
+  try {
+    const { estado } = req.body;
+    if (!estado) return res.status(400).json({ error: 'Estado requerido' });
+    const result = await query(
+      `UPDATE campanas_marketing SET estado=$1, updated_at=NOW() WHERE id=$2 RETURNING *`,
+      [estado, req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Campaña no encontrada' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error actualizando campaña' });
+  }
+});
+
+/* ── PEDIDOS ONLINE (E-COMMERCE) ── */
+router.get('/pedidos-online', async (req, res) => {
+  try {
+    const { canal, estado, page = 1 } = req.query;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+    let where = [];
+    let params = [];
+    let idx = 1;
+    if (canal) { where.push(`canal = $${idx++}`); params.push(canal); }
+    if (estado) { where.push(`estado = $${idx++}`); params.push(estado); }
+    const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
+    const [countRes, statsRes] = await Promise.all([
+      query(`SELECT COUNT(*) FROM pedidos_online ${whereClause}`, params),
+      query(`SELECT COUNT(*) as total,
+        COUNT(*) FILTER (WHERE estado='NUEVO') as nuevos,
+        COUNT(*) FILTER (WHERE estado='PREPARANDO') as preparando,
+        COUNT(*) FILTER (WHERE estado='DESPACHADO') as despachados
+        FROM pedidos_online`),
+    ]);
+    const total = parseInt(countRes.rows[0].count);
+    params.push(limit, offset);
+    const result = await query(
+      `SELECT * FROM pedidos_online ${whereClause} ORDER BY created_at DESC LIMIT $${idx++} OFFSET $${idx}`,
+      params
+    );
+    res.json({ data: result.rows, total, page: parseInt(page), totalPages: Math.ceil(total / limit), stats: statsRes.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Error obteniendo pedidos online' });
+  }
+});
+
+router.post('/pedidos-online', writeGuard, async (req, res) => {
+  try {
+    const { cliente_nombre, email, telefono, canal, total, descripcion } = req.body;
+    if (!cliente_nombre) return res.status(400).json({ error: 'Nombre de cliente requerido' });
+    const countRes = await query('SELECT COUNT(*) FROM pedidos_online');
+    const folio = `PO-${String(parseInt(countRes.rows[0].count) + 1).padStart(5, '0')}`;
+    const result = await query(
+      `INSERT INTO pedidos_online (folio, cliente_nombre, email, telefono, canal, total, descripcion)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [folio, cliente_nombre, email || null, telefono || null,
+       canal || 'WEB', parseFloat(total) || 0, descripcion || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error creando pedido' });
+  }
+});
+
+router.put('/pedidos-online/:id/estado', writeGuard, async (req, res) => {
+  try {
+    const { estado } = req.body;
+    const result = await query(
+      `UPDATE pedidos_online SET estado=$1, updated_at=NOW() WHERE id=$2 RETURNING *`,
+      [estado, req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Pedido no encontrado' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error actualizando pedido' });
+  }
+});
+
 module.exports = router;

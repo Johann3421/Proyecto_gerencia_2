@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { logisticaAPI } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { useSearch } from '../components/Topbar';
@@ -11,6 +11,406 @@ import Modal from '../components/ui/Modal';
 
 const formatCurrency = (val) => new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(val || 0);
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('es-PE') : '-';
+
+const chipStyle = (active) => ({
+  padding: '5px 14px', borderRadius: 20, fontSize: '12px', fontWeight: 600,
+  cursor: 'pointer', border: '1.5px solid var(--border-color)',
+  background: active ? 'var(--color-brand)' : 'var(--bg-primary)',
+  color: active ? '#fff' : 'var(--text-secondary)',
+});
+
+function TabAlmacen({ canWrite, search }) {
+  const [movimientos, setMovimientos] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [tipoFilter, setTipoFilter] = useState('');
+  const [stats, setStats] = useState({ hoy: 0, total: 0, entradas_mes: 0, salidas_mes: 0 });
+  const [productos, setProductos] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    tipo: 'ENTRADA', producto_id: '', cantidad: 1,
+    almacen_origen: 'PRINCIPAL', almacen_destino: 'PRINCIPAL',
+    motivo: '', referencia: '',
+  });
+
+  const fetchMovimientos = useCallback(async (p = 1) => {
+    const params = { page: p };
+    if (tipoFilter) params.tipo = tipoFilter;
+    const { data } = await logisticaAPI.getMovimientosAlmacen(params);
+    setMovimientos(data.data);
+    setPage(data.page);
+    setTotalPages(data.totalPages);
+    setStats(data.stats || { hoy: 0, total: 0, entradas_mes: 0, salidas_mes: 0 });
+  }, [tipoFilter]);
+
+  useEffect(() => { fetchMovimientos(1); }, [fetchMovimientos]);
+  useEffect(() => {
+    logisticaAPI.getProductos({ page: 1 }).then(({ data }) => setProductos(data.data || []));
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await logisticaAPI.createMovimientoAlmacen({ ...form, cantidad: parseInt(form.cantidad) });
+      setShowModal(false);
+      setForm({ tipo: 'ENTRADA', producto_id: '', cantidad: 1, almacen_origen: 'PRINCIPAL', almacen_destino: 'PRINCIPAL', motivo: '', referencia: '' });
+      fetchMovimientos(1);
+    } catch { alert('Error registrando movimiento'); }
+    finally { setLoading(false); }
+  };
+
+  const cols = [
+    { key: 'folio', label: 'Folio', mono: true, width: 100 },
+    { key: 'tipo', label: 'Tipo', render: v => <StatusPill status={v} />, width: 90 },
+    { key: 'producto_nombre', label: 'Producto' },
+    { key: 'cantidad', label: 'Cant.', width: 65 },
+    { key: 'almacen_origen', label: 'Origen', render: v => v || '—', width: 100 },
+    { key: 'almacen_destino', label: 'Destino', render: v => v || '—', width: 100 },
+    { key: 'motivo', label: 'Motivo', render: v => v || '—' },
+    { key: 'created_at', label: 'Fecha', render: formatDate, width: 110 },
+  ];
+
+  const filtered = movimientos.filter(m =>
+    !search ||
+    m.folio?.toLowerCase().includes(search.toLowerCase()) ||
+    m.producto_nombre?.toLowerCase().includes(search.toLowerCase()) ||
+    m.motivo?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div>
+      <div className="metrics-grid" style={{ marginBottom: 20 }}>
+        <MetricCard label="Total Movimientos" value={stats.total} />
+        <MetricCard label="Movimientos Hoy" value={stats.hoy} />
+        <MetricCard label="Entradas del Mes" value={stats.entradas_mes} positive />
+        <MetricCard label="Salidas del Mes" value={stats.salidas_mes} />
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {['', 'ENTRADA', 'SALIDA', 'AJUSTE', 'TRASLADO'].map((t, i) => (
+          <button key={i} style={chipStyle(tipoFilter === t)} onClick={() => setTipoFilter(t)}>
+            {t || 'Todos'}
+          </button>
+        ))}
+      </div>
+
+      <Panel
+        title="Movimientos de Almacén"
+        actions={canWrite && <Button variant="primary" onClick={() => setShowModal(true)}>+ Registrar Movimiento</Button>}
+      >
+        <DataTable
+          columns={cols}
+          data={filtered}
+          page={page}
+          totalPages={totalPages}
+          total={totalPages * 10}
+          onPageChange={p => { setPage(p); fetchMovimientos(p); }}
+          emptyMessage="No hay movimientos registrados"
+        />
+      </Panel>
+
+      {showModal && (
+        <Modal title="Registrar Movimiento de Almacén" onClose={() => setShowModal(false)}>
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-group">
+                <label className="form-label">Tipo de Movimiento</label>
+                <select className="form-input" value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })}>
+                  <option value="ENTRADA">Entrada — Ingreso al almacén</option>
+                  <option value="SALIDA">Salida — Despacho del almacén</option>
+                  <option value="AJUSTE">Ajuste de Inventario</option>
+                  <option value="TRASLADO">Traslado entre almacenes</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Producto</label>
+                <select className="form-input" required value={form.producto_id} onChange={e => setForm({ ...form, producto_id: e.target.value })}>
+                  <option value="">— Seleccionar —</option>
+                  {productos.map(p => <option key={p.id} value={p.id}>{p.sku} — {p.nombre}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Cantidad</label>
+                <input type="number" min="1" className="form-input" required value={form.cantidad}
+                  onChange={e => setForm({ ...form, cantidad: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Referencia</label>
+                <input type="text" className="form-input" value={form.referencia}
+                  onChange={e => setForm({ ...form, referencia: e.target.value })}
+                  placeholder="Ej: OC-00042, VT-00015" />
+              </div>
+              {form.tipo === 'TRASLADO' && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Almacén Origen</label>
+                    <select className="form-input" value={form.almacen_origen} onChange={e => setForm({ ...form, almacen_origen: e.target.value })}>
+                      <option value="PRINCIPAL">Principal</option>
+                      <option value="SECUNDARIO">Secundario</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Almacén Destino</label>
+                    <select className="form-input" value={form.almacen_destino} onChange={e => setForm({ ...form, almacen_destino: e.target.value })}>
+                      <option value="PRINCIPAL">Principal</option>
+                      <option value="SECUNDARIO">Secundario</option>
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="form-group">
+              <label className="form-label">Motivo / Descripción</label>
+              <input type="text" className="form-input" value={form.motivo}
+                onChange={e => setForm({ ...form, motivo: e.target.value })}
+                placeholder="Ej: Recepción OC-00042, Despacho pedido VT-00005..." />
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={() => setShowModal(false)}>Cancelar</Button>
+              <Button type="submit" variant="primary" disabled={loading}>{loading ? 'Guardando...' : 'Registrar Movimiento'}</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function TabMantenimiento({ canWrite, search }) {
+  const [subTab, setSubTab] = useState('activos');
+  const [activos, setActivos] = useState([]);
+  const [activosPage, setActivosPage] = useState(1);
+  const [activosTotalPages, setActivosTotalPages] = useState(1);
+  const [ordenes, setOrdenes] = useState([]);
+  const [ordenesPage, setOrdenesPage] = useState(1);
+  const [ordenesTotalPages, setOrdenesTotalPages] = useState(1);
+  const [stats, setStats] = useState({ activos: 0, operativos: 0, en_mantenimiento: 0, ordenes_pendientes: 0 });
+  const [showActivoModal, setShowActivoModal] = useState(false);
+  const [showOrdenModal, setShowOrdenModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [activoForm, setActivoForm] = useState({ codigo: '', nombre: '', tipo: '', numero_serie: '', ubicacion: '', valor_adquisicion: '' });
+  const [ordenForm, setOrdenForm] = useState({ activo_id: '', tipo: 'PREVENTIVO', descripcion: '', tecnico: '', fecha_programada: '' });
+
+  const fetchActivos = useCallback(async (p = 1) => {
+    const { data } = await logisticaAPI.getActivos({ page: p });
+    setActivos(data.data);
+    setActivosPage(data.page);
+    setActivosTotalPages(data.totalPages);
+    setStats(prev => ({ ...prev,
+      activos: parseInt(data.stats?.total || data.total || 0),
+      operativos: parseInt(data.stats?.operativos || 0),
+      en_mantenimiento: parseInt(data.stats?.en_mantenimiento || 0),
+    }));
+  }, []);
+
+  const fetchOrdenes = useCallback(async (p = 1) => {
+    const { data } = await logisticaAPI.getMantenimiento({ page: p });
+    setOrdenes(data.data);
+    setOrdenesPage(data.page);
+    setOrdenesTotalPages(data.totalPages);
+    setStats(prev => ({ ...prev, ordenes_pendientes: parseInt(data.stats?.pendientes || 0) }));
+  }, []);
+
+  useEffect(() => { fetchActivos(1); fetchOrdenes(1); }, [fetchActivos, fetchOrdenes]);
+
+  const handleActivoSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await logisticaAPI.createActivo({ ...activoForm, valor_adquisicion: parseFloat(activoForm.valor_adquisicion) || null });
+      setShowActivoModal(false);
+      setActivoForm({ codigo: '', nombre: '', tipo: '', numero_serie: '', ubicacion: '', valor_adquisicion: '' });
+      fetchActivos(1);
+    } catch { alert('Error creando activo'); }
+    finally { setLoading(false); }
+  };
+
+  const handleOrdenSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await logisticaAPI.createMantenimiento({ ...ordenForm });
+      setShowOrdenModal(false);
+      setOrdenForm({ activo_id: '', tipo: 'PREVENTIVO', descripcion: '', tecnico: '', fecha_programada: '' });
+      fetchOrdenes(1);
+    } catch { alert('Error creando orden de mantenimiento'); }
+    finally { setLoading(false); }
+  };
+
+  const activoCols = [
+    { key: 'codigo', label: 'Código', mono: true, width: 110 },
+    { key: 'nombre', label: 'Nombre / Descripción' },
+    { key: 'tipo', label: 'Tipo', render: v => v || '—', width: 120 },
+    { key: 'ubicacion', label: 'Ubicación', render: v => v || '—' },
+    { key: 'numero_serie', label: 'Nro. Serie', render: v => v || '—', mono: true },
+    { key: 'estado', label: 'Estado', render: v => <StatusPill status={v} />, width: 140 },
+  ];
+
+  const ordenCols = [
+    { key: 'folio', label: 'Folio', mono: true, width: 100 },
+    { key: 'activo_nombre', label: 'Activo' },
+    { key: 'tipo', label: 'Tipo', render: v => <StatusPill status={v} />, width: 110 },
+    { key: 'tecnico', label: 'Técnico', render: v => v || '—' },
+    { key: 'fecha_programada', label: 'Fecha Prog.', render: formatDate, width: 110 },
+    { key: 'estado', label: 'Estado', render: v => <StatusPill status={v} />, width: 110 },
+  ];
+
+  const filteredActivos = activos.filter(a =>
+    !search || a.nombre?.toLowerCase().includes(search.toLowerCase()) || a.codigo?.toLowerCase().includes(search.toLowerCase())
+  );
+  const filteredOrdenes = ordenes.filter(o =>
+    !search || o.activo_nombre?.toLowerCase().includes(search.toLowerCase()) ||
+    o.folio?.toLowerCase().includes(search.toLowerCase()) || o.tecnico?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div>
+      <div className="metrics-grid" style={{ marginBottom: 20 }}>
+        <MetricCard label="Activos Registrados" value={stats.activos} />
+        <MetricCard label="Operativos" value={stats.operativos} positive />
+        <MetricCard label="En Mantenimiento" value={stats.en_mantenimiento} />
+        <MetricCard label="Órdenes Pendientes" value={stats.ordenes_pendientes} />
+      </div>
+
+      <div className="tabs" style={{ marginBottom: 16 }}>
+        <div className={`tab ${subTab === 'activos' ? 'active' : ''}`} onClick={() => setSubTab('activos')}>Activos / Equipos</div>
+        <div className={`tab ${subTab === 'ordenes' ? 'active' : ''}`} onClick={() => setSubTab('ordenes')}>Órdenes de Mantenimiento</div>
+      </div>
+
+      {subTab === 'activos' && (
+        <Panel
+          title="Registro de Activos y Equipos"
+          actions={canWrite && <Button variant="primary" onClick={() => setShowActivoModal(true)}>+ Nuevo Activo</Button>}
+        >
+          <DataTable
+            columns={activoCols}
+            data={filteredActivos}
+            page={activosPage}
+            totalPages={activosTotalPages}
+            total={activosTotalPages * 10}
+            onPageChange={fetchActivos}
+            emptyMessage="No hay activos registrados"
+          />
+        </Panel>
+      )}
+
+      {subTab === 'ordenes' && (
+        <Panel
+          title="Órdenes de Mantenimiento"
+          actions={canWrite && <Button variant="primary" onClick={() => setShowOrdenModal(true)}>+ Nueva Orden</Button>}
+        >
+          <DataTable
+            columns={ordenCols}
+            data={filteredOrdenes}
+            page={ordenesPage}
+            totalPages={ordenesTotalPages}
+            total={ordenesTotalPages * 10}
+            onPageChange={fetchOrdenes}
+            emptyMessage="No hay órdenes de mantenimiento"
+          />
+        </Panel>
+      )}
+
+      {showActivoModal && (
+        <Modal title="Registrar Nuevo Activo" onClose={() => setShowActivoModal(false)} width="560px">
+          <form onSubmit={handleActivoSubmit}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
+              <div className="form-group">
+                <label className="form-label">Código Activo</label>
+                <input type="text" className="form-input" required value={activoForm.codigo}
+                  onChange={e => setActivoForm({ ...activoForm, codigo: e.target.value })}
+                  placeholder="Ej: EQ-006" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Nombre del Activo</label>
+                <input type="text" className="form-input" required value={activoForm.nombre}
+                  onChange={e => setActivoForm({ ...activoForm, nombre: e.target.value })}
+                  placeholder="Ej: Montacargas Eléctrico Toyota" />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-group">
+                <label className="form-label">Tipo / Categoría</label>
+                <input type="text" className="form-input" value={activoForm.tipo}
+                  onChange={e => setActivoForm({ ...activoForm, tipo: e.target.value })}
+                  placeholder="Ej: Maquinaria, Vehículo, TI" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Nro. de Serie</label>
+                <input type="text" className="form-input" value={activoForm.numero_serie}
+                  onChange={e => setActivoForm({ ...activoForm, numero_serie: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Ubicación</label>
+                <input type="text" className="form-input" value={activoForm.ubicacion}
+                  onChange={e => setActivoForm({ ...activoForm, ubicacion: e.target.value })}
+                  placeholder="Ej: Almacén Principal, Piso 2" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Valor Adquisición (S/)</label>
+                <input type="number" step="0.01" className="form-input" value={activoForm.valor_adquisicion}
+                  onChange={e => setActivoForm({ ...activoForm, valor_adquisicion: e.target.value })} placeholder="0.00" />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={() => setShowActivoModal(false)}>Cancelar</Button>
+              <Button type="submit" variant="primary" disabled={loading}>{loading ? 'Guardando...' : 'Registrar Activo'}</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {showOrdenModal && (
+        <Modal title="Nueva Orden de Mantenimiento" onClose={() => setShowOrdenModal(false)} width="560px">
+          <form onSubmit={handleOrdenSubmit}>
+            <div className="form-group">
+              <label className="form-label">Activo / Equipo</label>
+              <select className="form-input" required value={ordenForm.activo_id}
+                onChange={e => setOrdenForm({ ...ordenForm, activo_id: e.target.value })}>
+                <option value="">— Seleccionar activo —</option>
+                {activos.map(a => <option key={a.id} value={a.id}>{a.codigo} — {a.nombre}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-group">
+                <label className="form-label">Tipo de Mantenimiento</label>
+                <select className="form-input" value={ordenForm.tipo}
+                  onChange={e => setOrdenForm({ ...ordenForm, tipo: e.target.value })}>
+                  <option value="PREVENTIVO">Preventivo</option>
+                  <option value="CORRECTIVO">Correctivo</option>
+                  <option value="EMERGENCIA">Emergencia</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Técnico Asignado</label>
+                <input type="text" className="form-input" value={ordenForm.tecnico}
+                  onChange={e => setOrdenForm({ ...ordenForm, tecnico: e.target.value })}
+                  placeholder="Nombre del técnico" />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Fecha Programada</label>
+              <input type="date" className="form-input" value={ordenForm.fecha_programada}
+                onChange={e => setOrdenForm({ ...ordenForm, fecha_programada: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Descripción del Trabajo</label>
+              <textarea className="form-input" required rows={3} value={ordenForm.descripcion}
+                onChange={e => setOrdenForm({ ...ordenForm, descripcion: e.target.value })}
+                placeholder="Describe el trabajo de mantenimiento a realizar..." />
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={() => setShowOrdenModal(false)}>Cancelar</Button>
+              <Button type="submit" variant="primary" disabled={loading}>{loading ? 'Creando...' : 'Crear Orden'}</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
 
 export default function Logistica() {
   const { canWrite } = useAuth();
@@ -188,17 +588,9 @@ export default function Logistica() {
         </Panel>
       )}
 
-      {tab === 'almacen' && (
-        <Panel title="Gestión de Almacén">
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Módulo de Almacén en desarrollo...</div>
-        </Panel>
-      )}
+      {tab === 'almacen' && <TabAlmacen canWrite={canWrite} search={search} />}
 
-      {tab === 'mantenimiento' && (
-        <Panel title="Mantenimiento de Equipos / Flota">
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Módulo de Mantenimiento en desarrollo...</div>
-        </Panel>
-      )}
+      {tab === 'mantenimiento' && <TabMantenimiento canWrite={canWrite} search={search} />}
 
       {/* Modals */}
       {showProdModal && (

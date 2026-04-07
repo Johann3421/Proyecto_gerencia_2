@@ -42,6 +42,14 @@ export const comercialAPI = {
   deleteVenta: (id) => api.delete(`/comercial/ventas/${id}`),
   getClientes: (params) => api.get('/comercial/clientes', { params }),
   createCliente: (data) => api.post('/comercial/clientes', data),
+  // Marketing
+  getCampanas: (params) => api.get('/comercial/campanas-marketing', { params }),
+  createCampana: (data) => api.post('/comercial/campanas-marketing', data),
+  actualizarCampanaEstado: (id, data) => api.put(`/comercial/campanas-marketing/${id}/estado`, data),
+  // E-commerce
+  getPedidosOnline: (params) => api.get('/comercial/pedidos-online', { params }),
+  createPedidoOnline: (data) => api.post('/comercial/pedidos-online', data),
+  actualizarPedidoEstado: (id, data) => api.put(`/comercial/pedidos-online/${id}/estado`, data),
 };
 
 /* ── Logistica ── */
@@ -54,6 +62,16 @@ export const logisticaAPI = {
   getDistribuciones: (params) => api.get('/logistica/distribuciones', { params }),
   createDistribucion: (data) => api.post('/logistica/distribuciones', data),
   metrics: () => api.get('/logistica/metrics'),
+  // Activos
+  getActivos: (params) => api.get('/logistica/activos', { params }),
+  createActivo: (data) => api.post('/logistica/activos', data),
+  // Mantenimiento
+  getMantenimiento: (params) => api.get('/logistica/mantenimiento', { params }),
+  createMantenimiento: (data) => api.post('/logistica/mantenimiento', data),
+  actualizarMantEstado: (id, data) => api.put(`/logistica/mantenimiento/${id}/estado`, data),
+  // Almacén
+  getMovimientosAlmacen: (params) => api.get('/logistica/movimientos-almacen', { params }),
+  createMovimientoAlmacen: (data) => api.post('/logistica/movimientos-almacen', data),
 };
 
 /* ── Administracion ── */
@@ -75,7 +93,10 @@ export const adminAPI = {
   createCuentaBancaria: (data) => api.post('/administracion/cuentas-bancarias', data),
   getPagosProgramados: (params) => api.get('/administracion/pagos-programados', { params }),
   createPagoProgramado: (data) => api.post('/administracion/pagos-programados', data),
-  completarPago: (id) => api.put(`/administracion/pagos-programados/${id}/completar`),
+  // Legales
+  getContratos: (params) => api.get('/administracion/contratos', { params }),
+  createContrato: (data) => api.post('/administracion/contratos', data),
+  actualizarContratoEstado: (id, data) => api.put(`/administracion/contratos/${id}/estado`, data),
 };
 
 /* ── Tecnologia ── */
@@ -84,6 +105,7 @@ export const techAPI = {
   createTicket: (data) => api.post('/tecnologia/tickets', data),
   getTicket: (id) => api.get(`/tecnologia/tickets/${id}`),
   updateTicket: (id, data) => api.put(`/tecnologia/tickets/${id}`, data),
+  getMetrics: (params) => api.get('/tecnologia/metrics', { params }),
 };
 
 /* ── Produccion ── */

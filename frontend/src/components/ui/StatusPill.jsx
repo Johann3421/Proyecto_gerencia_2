@@ -29,6 +29,23 @@ const STATUS_MAP = {
   PEN: 'ok', USD: 'info', EUR: 'warn',
   // Tipo cuenta contable
   ACTIVO_CONTA: 'ok', PASIVO: 'err', PATRIMONIO: 'info', GASTO: 'warn',
+  // Contratos
+  VIGENTE: 'ok', POR_VENCER: 'warn',
+  LABORAL: 'info', PROVEEDOR: 'warn', CLIENTE: 'ok', ARRENDAMIENTO: 'info', SERVICIOS: 'info', OTROS: 'info',
+  // Marketing - campaña estados
+  ACTIVA: 'ok', PAUSADA: 'warn', FINALIZADA: 'info',
+  // Marketing - tipos
+  EMAIL: 'info', SOCIAL_MEDIA: 'ok', FLYER: 'info', EVENTO: 'ok', DIGITAL: 'info',
+  // E-commerce - estados pedido
+  NUEVO: 'warn', CONFIRMADO: 'info', PREPARANDO: 'warn', DESPACHADO: 'ok',
+  // E-commerce - canales
+  WEB: 'info', APP: 'ok', WHATSAPP: 'ok', MARKETPLACE: 'warn',
+  // Activos
+  OPERATIVO: 'ok', EN_MANTENIMIENTO: 'warn', DADO_DE_BAJA: 'err',
+  // Mantenimiento tipos
+  PREVENTIVO: 'info', CORRECTIVO: 'warn', EMERGENCIA: 'err',
+  // Movimientos almacén
+  ENTRADA: 'ok', SALIDA: 'err', AJUSTE: 'warn', TRASLADO: 'info',
 };
 
 export default function StatusPill({ status, label: customLabel, className = '' }) {

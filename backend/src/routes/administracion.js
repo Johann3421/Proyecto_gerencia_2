@@ -331,4 +331,81 @@ router.put('/pagos-programados/:id/completar', writeGuard, async (req, res) => {
   }
 });
 
+/* ── CONTRATOS (Legales) ── */
+router.get('/contratos', async (req, res) => {
+  try {
+    const { tipo, estado, page = 1 } = req.query;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+    let where = [];
+    let params = [];
+    let idx = 1;
+
+    if (tipo) { where.push(`tipo = $${idx++}`); params.push(tipo); }
+    if (estado) { where.push(`estado = $${idx++}`); params.push(estado); }
+
+    const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    const countRes = await query(`SELECT COUNT(*) FROM contratos ${whereClause}`, params);
+    const total = parseInt(countRes.rows[0].count);
+
+    const statsRes = await query(`
+      SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE estado = 'VIGENTE') as vigentes,
+        COUNT(*) FILTER (WHERE estado = 'POR_VENCER') as por_vencer,
+        COUNT(*) FILTER (WHERE estado = 'VENCIDO') as vencidos
+      FROM contratos
+    `);
+
+    params.push(limit, offset);
+    const result = await query(
+      `SELECT c.*, u.nombre as creado_por_nombre FROM contratos c
+       LEFT JOIN usuarios u ON c.creado_por = u.id
+       ${whereClause} ORDER BY c.created_at DESC LIMIT $${idx++} OFFSET $${idx}`,
+      params
+    );
+    res.json({ data: result.rows, total, page: parseInt(page), totalPages: Math.ceil(total / limit), stats: statsRes.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error obteniendo contratos' });
+  }
+});
+
+router.post('/contratos', writeGuard, async (req, res) => {
+  try {
+    const { titulo, tipo, contraparte, descripcion, fecha_inicio, fecha_vencimiento, monto, moneda } = req.body;
+    if (!titulo) return res.status(400).json({ error: 'Título es requerido' });
+
+    const countRes = await query('SELECT COUNT(*) FROM contratos');
+    const folio = `LG-${String(parseInt(countRes.rows[0].count) + 1).padStart(5, '0')}`;
+
+    const result = await query(
+      `INSERT INTO contratos (folio, titulo, tipo, contraparte, descripcion, fecha_inicio, fecha_vencimiento, monto, moneda, creado_por)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [folio, titulo, tipo || 'OTROS', contraparte || null, descripcion || null,
+       fecha_inicio || new Date(), fecha_vencimiento || null,
+       monto ? parseFloat(monto) : null, moneda || 'PEN', req.user?.id || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error creando contrato' });
+  }
+});
+
+router.put('/contratos/:id/estado', writeGuard, async (req, res) => {
+  try {
+    const { estado } = req.body;
+    if (!estado) return res.status(400).json({ error: 'Estado es requerido' });
+    const result = await query(
+      `UPDATE contratos SET estado = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [estado, req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Contrato no encontrado' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error actualizando contrato' });
+  }
+});
+
 module.exports = router;

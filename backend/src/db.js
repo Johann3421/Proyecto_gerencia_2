@@ -88,6 +88,46 @@ const initDB = async () => {
     DO $$ BEGIN
       CREATE TYPE moneda_enum AS ENUM('PEN','USD','EUR');
     EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE tipo_contrato AS ENUM('LABORAL','PROVEEDOR','CLIENTE','ARRENDAMIENTO','SERVICIOS','OTROS');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE contrato_estado AS ENUM('BORRADOR','VIGENTE','POR_VENCER','VENCIDO','CANCELADO');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE campana_tipo AS ENUM('EMAIL','SOCIAL_MEDIA','FLYER','EVENTO','DIGITAL');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE campana_estado AS ENUM('BORRADOR','ACTIVA','PAUSADA','FINALIZADA');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE pedido_canal_enum AS ENUM('WEB','APP','WHATSAPP','MARKETPLACE');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE pedido_online_estado AS ENUM('NUEVO','CONFIRMADO','PREPARANDO','DESPACHADO','ENTREGADO','CANCELADO');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE activo_estado AS ENUM('OPERATIVO','EN_MANTENIMIENTO','DADO_DE_BAJA');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE mant_tipo AS ENUM('PREVENTIVO','CORRECTIVO','EMERGENCIA');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE mant_estado AS ENUM('PENDIENTE','EN_PROCESO','COMPLETADO','CANCELADO');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE movimiento_tipo AS ENUM('ENTRADA','SALIDA','AJUSTE','TRASLADO');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
   `);
 
   await query(`
@@ -320,6 +360,97 @@ const initDB = async () => {
       referencia VARCHAR(100),
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    /* ── LEGALES ── */
+    CREATE TABLE IF NOT EXISTS contratos (
+      id SERIAL PRIMARY KEY,
+      folio VARCHAR(20) UNIQUE NOT NULL,
+      titulo VARCHAR(200) NOT NULL,
+      tipo tipo_contrato NOT NULL DEFAULT 'OTROS',
+      contraparte VARCHAR(200),
+      descripcion TEXT,
+      fecha_inicio DATE DEFAULT CURRENT_DATE,
+      fecha_vencimiento DATE,
+      monto NUMERIC(12,2),
+      moneda moneda_enum DEFAULT 'PEN',
+      estado contrato_estado DEFAULT 'BORRADOR',
+      creado_por INT REFERENCES usuarios(id),
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    /* ── MARKETING ── */
+    CREATE TABLE IF NOT EXISTS campanas_marketing (
+      id SERIAL PRIMARY KEY,
+      folio VARCHAR(20) UNIQUE NOT NULL,
+      nombre VARCHAR(200) NOT NULL,
+      tipo campana_tipo NOT NULL DEFAULT 'DIGITAL',
+      descripcion TEXT,
+      presupuesto NUMERIC(12,2) DEFAULT 0,
+      gasto_actual NUMERIC(12,2) DEFAULT 0,
+      fecha_inicio DATE DEFAULT CURRENT_DATE,
+      fecha_fin DATE,
+      estado campana_estado DEFAULT 'BORRADOR',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS pedidos_online (
+      id SERIAL PRIMARY KEY,
+      folio VARCHAR(20) UNIQUE NOT NULL,
+      cliente_nombre VARCHAR(200) NOT NULL,
+      email VARCHAR(180),
+      telefono VARCHAR(30),
+      canal pedido_canal_enum NOT NULL DEFAULT 'WEB',
+      total NUMERIC(12,2) DEFAULT 0,
+      descripcion TEXT,
+      estado pedido_online_estado DEFAULT 'NUEVO',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    /* ── MANTENIMIENTO / ACTIVOS ── */
+    CREATE TABLE IF NOT EXISTS activos_empresa (
+      id SERIAL PRIMARY KEY,
+      codigo VARCHAR(30) UNIQUE NOT NULL,
+      nombre VARCHAR(200) NOT NULL,
+      tipo VARCHAR(100),
+      numero_serie VARCHAR(100),
+      ubicacion VARCHAR(200),
+      valor_adquisicion NUMERIC(12,2),
+      estado activo_estado DEFAULT 'OPERATIVO',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS ordenes_mantenimiento (
+      id SERIAL PRIMARY KEY,
+      folio VARCHAR(20) UNIQUE NOT NULL,
+      activo_id INT REFERENCES activos_empresa(id),
+      tipo mant_tipo NOT NULL DEFAULT 'PREVENTIVO',
+      descripcion TEXT NOT NULL,
+      tecnico VARCHAR(200),
+      fecha_programada DATE,
+      fecha_fin DATE,
+      costo NUMERIC(10,2),
+      estado mant_estado DEFAULT 'PENDIENTE',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS movimientos_almacen (
+      id SERIAL PRIMARY KEY,
+      folio VARCHAR(20) UNIQUE NOT NULL,
+      tipo movimiento_tipo NOT NULL,
+      producto_id INT REFERENCES productos(id),
+      producto_nombre VARCHAR(200),
+      cantidad INT NOT NULL DEFAULT 1,
+      almacen_origen almacen_enum,
+      almacen_destino almacen_enum,
+      motivo TEXT,
+      referencia VARCHAR(100),
+      created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
 

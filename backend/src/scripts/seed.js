@@ -290,6 +290,131 @@ const seed = async () => {
       }
     }
 
+    // ── CONTRATOS LEGALES ──
+    const contratosExist = await query('SELECT COUNT(*) FROM contratos');
+    if (parseInt(contratosExist.rows[0].count) === 0) {
+      const contratos = [
+        ['LG-00001', 'Contrato Laboral — Gerente Administrativo', 'LABORAL', 'Carlos Mendoza Ríos', 'Contrato de trabajo a plazo indeterminado para el cargo de Gerente Administrativo. Incluye beneficios de ley, CTS, gratificaciones y EsSalud.', '2022-01-01', '2027-12-31', 5500.00, 'PEN', 'VIGENTE'],
+        ['LG-00002', 'Contrato Laboral — Jefe de Tecnología', 'LABORAL', 'María Torres Luna', 'Contrato de trabajo para el cargo de Jefe de Tecnología. Sujeto a renovación anual.', '2023-03-01', '2026-04-30', 5000.00, 'PEN', 'POR_VENCER'],
+        ['LG-00003', 'Contrato Suministro — Distribuidora Lima SAC', 'PROVEEDOR', 'Distribuidora Lima SAC', 'Contrato marco de suministro de insumos y materiales con condiciones preferentes y descuentos por volumen.', '2025-01-01', '2026-12-31', 180000.00, 'PEN', 'VIGENTE'],
+        ['LG-00004', 'Contrato Servicios Cloud — AWS', 'PROVEEDOR', 'Amazon Web Services Inc.', 'Acuerdo Enterprise Support y servicios de infraestructura cloud (EC2, RDS, S3). Pago anual.', '2025-07-01', '2027-06-30', 48000.00, 'USD', 'VIGENTE'],
+        ['LG-00005', 'Contrato Servicio — Tech Solutions Perú', 'CLIENTE', 'Tech Solutions Perú SAC', 'Contrato de prestación de servicios de mantenimiento y soporte técnico mensual.', '2025-06-01', '2026-05-31', 24000.00, 'PEN', 'VIGENTE'],
+        ['LG-00006', 'Arrendamiento — Oficina Principal San Isidro', 'ARRENDAMIENTO', 'Inmobiliaria Colonial SAC', 'Arrendamiento de oficinas piso 8, Torre B, Centro Empresarial San Isidro. 450m² con estacionamientos.', '2024-01-01', '2024-12-31', 15000.00, 'PEN', 'VENCIDO'],
+        ['LG-00007', 'Contrato Servicios IT — Soporte Externo', 'SERVICIOS', 'DataCenter Andino SAC', 'Servicios de soporte técnico externo, help desk nivel 2 y mantenimiento preventivo de infraestructura.', '2025-09-01', '2026-08-31', 36000.00, 'PEN', 'VIGENTE'],
+      ];
+      for (const [folio, titulo, tipo, contraparte, descripcion, fecha_inicio, fecha_vencimiento, monto, moneda, estado] of contratos) {
+        await query(
+          `INSERT INTO contratos (folio, titulo, tipo, contraparte, descripcion, fecha_inicio, fecha_vencimiento, monto, moneda, estado, creado_por)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,1)`,
+          [folio, titulo, tipo, contraparte, descripcion, fecha_inicio, fecha_vencimiento, monto, moneda, estado]
+        );
+      }
+    }
+
+    // -- CAMPAÑAS MARKETING --
+    const campanaCount = await query('SELECT COUNT(*) FROM campanas_marketing');
+    if (parseInt(campanaCount.rows[0].count) === 0) {
+      const campanas = [
+        ['MK-00001', 'Campaña Día de la Madre 2025', 'EMAIL', 'Email masivo a base de clientes segmentada por historial de compras. Descuentos del 20% en categorías seleccionadas.', 5000.00, 3200.00, '2025-04-15', '2025-05-11', 'FINALIZADA'],
+        ['MK-00002', 'Lanzamiento Redes Sociales Q2', 'SOCIAL_MEDIA', 'Campaña de branding en Instagram y Facebook. Pauta pagada, stories, reels y colaboraciones con micro-influencers.', 8000.00, 6500.00, '2025-04-01', '2025-06-30', 'ACTIVA'],
+        ['MK-00003', 'Feria Expo Industrial 2025', 'EVENTO', 'Participación en Expo Industrial Lima. Stand 6x4m, material POP, demos de producto y sorteo entre visitantes.', 12000.00, 4100.00, '2025-09-10', '2025-09-13', 'BORRADOR'],
+        ['MK-00004', 'Campaña Digital — Temporada Alta', 'DIGITAL', 'Google Ads + Meta Ads para temporada navideña. Remarketing, búsqueda paga y display en principales portales.', 15000.00, 2800.00, '2025-11-01', '2025-12-31', 'ACTIVA'],
+      ];
+      for (const [folio, nombre, tipo, descripcion, presupuesto, gasto_actual, fecha_inicio, fecha_fin, estado] of campanas) {
+        await query(
+          `INSERT INTO campanas_marketing (folio, nombre, tipo, descripcion, presupuesto, gasto_actual, fecha_inicio, fecha_fin, estado)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [folio, nombre, tipo, descripcion, presupuesto, gasto_actual, fecha_inicio, fecha_fin, estado]
+        );
+      }
+    }
+
+    // -- PEDIDOS ONLINE --
+    const pedidoCount = await query('SELECT COUNT(*) FROM pedidos_online');
+    if (parseInt(pedidoCount.rows[0].count) === 0) {
+      const pedidos = [
+        ['PO-00001', 'Carlos Mendoza Ríos', 'cmendoza@gmail.com', '987654321', 'WEB', 1250.00, '2x Casco Seguridad EPP-001, 1x Guantes Industriales', 'DESPACHADO'],
+        ['PO-00002', 'Ferretería El Maestro SAC', 'compras@ferreteriame.pe', '01-5551234', 'WHATSAPP', 3800.50, 'Pedido: 50 rollos cable NYY 2.5mm, 20x tomacorrientes dobles, 10x disyuntores 20A', 'CONFIRMADO'],
+        ['PO-00003', 'Construcciones Andes EIRL', null, '999888777', 'MARKETPLACE', 540.00, 'Kit herramientas básico x3 unidades — Ref. CAT-2025-KH3', 'NUEVO'],
+        ['PO-00004', 'Laura Sánchez Vidal', 'laurasv@hotmail.com', '956321478', 'APP', 890.00, '1x Taladro Percutor 750W + accesorios. Entrega en domicilio San Borja.', 'PREPARANDO'],
+        ['PO-00005', 'Grupo Construcción Norte SAC', 'logistica@gcnorte.pe', '01-7896540', 'WEB', 12450.00, 'Pedido corporativo: 200u cemento Portland, 50 sacos cal, transporte incluido', 'ENTREGADO'],
+      ];
+      for (const [folio, cliente_nombre, email, telefono, canal, total, descripcion, estado] of pedidos) {
+        await query(
+          `INSERT INTO pedidos_online (folio, cliente_nombre, email, telefono, canal, total, descripcion, estado)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          [folio, cliente_nombre, email, telefono, canal, total, descripcion, estado]
+        );
+      }
+    }
+
+    // -- ACTIVOS EMPRESA --
+    const activoCount = await query('SELECT COUNT(*) FROM activos_empresa');
+    if (parseInt(activoCount.rows[0].count) === 0) {
+      const activos = [
+        ['EQ-001', 'Montacargas Eléctrico Toyota 8FBE15', 'Maquinaria', 'T8FBE15-00234', 'Almacén Principal — Zona A', 85000.00, 'OPERATIVO'],
+        ['EQ-002', 'Servidor Dell PowerEdge R750', 'TI — Servidor', 'CNF1234XZ7', 'CPD — Rack 3', 42000.00, 'OPERATIVO'],
+        ['VH-001', 'Camión Hino 500 FC — Placa ABC-123', 'Vehículo', 'JHDFC9JKXX001', 'Patio de Vehículos', 175000.00, 'EN_MANTENIMIENTO'],
+        ['EQ-003', 'Compresor Industrial 200L — Atlas Copco', 'Maquinaria', 'AC200-LM-5566', 'Taller de Producción', 22000.00, 'OPERATIVO'],
+        ['MOB-001', 'UPS APC Smart-UPS 3000VA', 'TI — Infraestructura', 'SUA3000I-990XP', 'CPD — Área eléctrica', 8500.00, 'OPERATIVO'],
+      ];
+      for (const [codigo, nombre, tipo, numero_serie, ubicacion, valor_adquisicion, estado] of activos) {
+        await query(
+          `INSERT INTO activos_empresa (codigo, nombre, tipo, numero_serie, ubicacion, valor_adquisicion, estado)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [codigo, nombre, tipo, numero_serie, ubicacion, valor_adquisicion, estado]
+        );
+      }
+    }
+
+    // -- ORDENES MANTENIMIENTO --
+    const mantCount = await query('SELECT COUNT(*) FROM ordenes_mantenimiento');
+    if (parseInt(mantCount.rows[0].count) === 0) {
+      const activoIds = await query('SELECT id, codigo FROM activos_empresa ORDER BY codigo');
+      const idMap = {};
+      activoIds.rows.forEach(r => { idMap[r.codigo] = r.id; });
+      const ordenes = [
+        ['MT-00001', idMap['VH-001'], 'CORRECTIVO', 'Falla en sistema de frenos delanteros. Requiere cambio de pastillas y revisión de discos. Vehículo fuera de servicio hasta la reparación.', 'Miguel Ángel Torres', '2025-07-05', 850.00, 'EN_PROCESO'],
+        ['MT-00002', idMap['EQ-001'], 'PREVENTIVO', 'Mantenimiento preventivo mensual montacargas: cambio de aceite hidráulico, revisión de batería, calibración de horquillas y lubricación general.', 'Servicio Técnico Toyota', '2025-07-15', null, 'PENDIENTE'],
+        ['MT-00003', idMap['EQ-002'], 'PREVENTIVO', 'Limpieza de filtros, actualización de firmware, revisión de temperatura de operación y backup de configuraciones del servidor Dell PowerEdge.', 'Gerardo Espinoza', '2025-07-20', null, 'PENDIENTE'],
+        ['MT-00004', idMap['EQ-003'], 'CORRECTIVO', 'Pérdida de presión en compresor industrial. Revisión de válvulas y sellos, prueba de presión máxima y ajuste de regulador. Completado.', 'Mecánico Industrial SAC', '2025-06-10', 1200.00, 'COMPLETADO'],
+      ];
+      for (const [folio, activo_id, tipo, descripcion, tecnico, fecha_programada, costo, estado] of ordenes) {
+        if (activo_id) {
+          await query(
+            `INSERT INTO ordenes_mantenimiento (folio, activo_id, tipo, descripcion, tecnico, fecha_programada, costo, estado)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            [folio, activo_id, tipo, descripcion, tecnico, fecha_programada, costo, estado]
+          );
+        }
+      }
+    }
+
+    // -- MOVIMIENTOS ALMACÉN --
+    const movCount = await query('SELECT COUNT(*) FROM movimientos_almacen');
+    if (parseInt(movCount.rows[0].count) === 0) {
+      const prodIds = await query('SELECT id, sku FROM productos ORDER BY sku LIMIT 5');
+      if (prodIds.rows.length > 0) {
+        const p = prodIds.rows;
+        const movs = [
+          ['MV-00001', 'ENTRADA', p[0]?.id, p[0]?.sku, 150, 'PRINCIPAL', null, 'Recepción OC-00003 — proveedor confirmado', 'OC-00003'],
+          ['MV-00002', 'SALIDA', p[1]?.id, p[1]?.sku, 30, null, 'PRINCIPAL', 'Despacho pedido VT-00002 — cliente Ferrex SAC', 'VT-00002'],
+          ['MV-00003', 'TRASLADO', p[0]?.id, p[0]?.sku, 50, 'PRINCIPAL', 'SECUNDARIO', 'Reposición punto de venta secundario julio 2025', null],
+          ['MV-00004', 'ENTRADA', p[2]?.id, p[2]?.sku, 80, 'PRINCIPAL', null, 'Recepción OC-00004 — llegó con 5 unidades faltantes anotado', 'OC-00004'],
+          ['MV-00005', 'AJUSTE', p[3]?.id, p[3]?.sku, 5, 'PRINCIPAL', null, 'Ajuste por inventario físico mensual — diferencia contada', null],
+        ];
+        for (const [folio, tipo, producto_id, producto_nombre, cantidad, almacen_origen, almacen_destino, motivo, referencia] of movs) {
+          if (producto_id) {
+            await query(
+              `INSERT INTO movimientos_almacen (folio, tipo, producto_id, producto_nombre, cantidad, almacen_origen, almacen_destino, motivo, referencia)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+              [folio, tipo, producto_id, producto_nombre, cantidad, almacen_origen, almacen_destino, motivo, referencia]
+            );
+          }
+        }
+      }
+    }
+
     console.log('✅ Seed completado exitosamente');
     console.log('📧 Login: admin@nexo.pe / Admin1234!');
   } catch (err) {

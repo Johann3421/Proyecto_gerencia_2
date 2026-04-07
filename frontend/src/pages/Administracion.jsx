@@ -968,11 +968,7 @@ export default function Administracion() {
       )}
 
       {tab === 'legales' && (
-        <Panel title="Asuntos Legales">
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
-            Módulo de Asuntos Legales en desarrollo...
-          </div>
-        </Panel>
+        <TabLegales canWrite={canWrite} search={search} />
       )}
 
       {tab === 'tesoreria' && (

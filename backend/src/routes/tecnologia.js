@@ -76,14 +76,33 @@ router.put('/tickets/:id', writeGuard, async (req, res) => {
     const { titulo, descripcion, tipo, asignado_a, estado, prioridad } = req.body;
     const result = await query(
       `UPDATE tickets SET titulo=COALESCE($1,titulo), descripcion=COALESCE($2,descripcion),
-       tipo=COALESCE($3,tipo), asignado_a=COALESCE($4,asignado_a), estado=COALESCE($5,estado),
+       tipo=COALESCE($3,tipo), asignado_a=COALESCE($4::int,asignado_a), estado=COALESCE($5,estado),
        prioridad=COALESCE($6,prioridad), updated_at=NOW() WHERE id=$7 RETURNING *`,
-      [titulo, descripcion, tipo, asignado_a, estado, prioridad, req.params.id]
+      [titulo || null, descripcion || null, tipo || null, asignado_a || null, estado || null, prioridad || null, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Ticket no encontrado' });
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Error actualizando ticket' });
+  }
+});
+
+router.get('/metrics', async (req, res) => {
+  try {
+    const { tipo } = req.query;
+    const result = await query(`
+      SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE estado = 'ABIERTO') as abiertos,
+        COUNT(*) FILTER (WHERE estado = 'EN_PROCESO') as en_proceso,
+        COUNT(*) FILTER (WHERE estado IN ('RESUELTO','CERRADO')) as resueltos,
+        COUNT(*) FILTER (WHERE prioridad = 'CRITICA' AND estado IN ('ABIERTO','EN_PROCESO')) as criticos
+      FROM tickets
+      WHERE ($1::text IS NULL OR tipo = $1::ticket_tipo)
+    `, [tipo || null]);
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error obteniendo métricas' });
   }
 });
 

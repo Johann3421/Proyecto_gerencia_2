@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { produccionAPI } from '../api';
 import { useAuth } from '../hooks/useAuth';
+import { useSearch } from '../components/Topbar';
 import Panel from '../components/ui/Panel';
 import DataTable from '../components/ui/DataTable';
 import Button from '../components/ui/Button';
@@ -31,6 +32,7 @@ function PipelineVisual({ estado }) {
 
 export default function Produccion() {
   const { canWrite, user } = useAuth();
+  const { search } = useSearch();
   const [tab, setTab] = useState('ordenes');
   
   const [ordenes, setOrdenes] = useState([]);
@@ -172,13 +174,13 @@ export default function Produccion() {
 
       {tab === 'ordenes' && (
         <Panel title="Órdenes de Fabricación Activas" actions={canWrite && <Button variant="primary" onClick={() => setShowOFModal(true)}>Nueva Orden (OF)</Button>}>
-          <DataTable columns={oCols} data={ordenes} page={oPage} totalPages={oTotal} total={oTotal*10} onPageChange={setOPage} onRowClick={handleAdvanceOF} />
+          <DataTable columns={oCols} data={ordenes.filter(o => !search || o.folio?.toLowerCase().includes(search.toLowerCase()) || o.producto?.toLowerCase().includes(search.toLowerCase()))} page={oPage} totalPages={oTotal} total={oTotal*10} onPageChange={setOPage} onRowClick={handleAdvanceOF} />
         </Panel>
       )}
 
       {tab === 'calidad' && (
         <Panel title="Registro de Inspecciones y Auditorías" actions={canWrite && <Button variant="primary" onClick={() => setShowInspModal(true)}>Registrar Inspección</Button>}>
-          <DataTable columns={iCols} data={insp} page={iPage} totalPages={iTotal} total={iTotal*10} onPageChange={setIPage} />
+          <DataTable columns={iCols} data={insp.filter(i => !search || i.orden_folio?.toLowerCase().includes(search.toLowerCase()) || i.inspector_nombre?.toLowerCase().includes(search.toLowerCase()))} page={iPage} totalPages={iTotal} total={iTotal*10} onPageChange={setIPage} />
         </Panel>
       )}
 

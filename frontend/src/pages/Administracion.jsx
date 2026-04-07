@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../api';
 import { useAuth } from '../hooks/useAuth';
+import { useSearch } from '../components/Topbar';
 import Panel from '../components/ui/Panel';
 import DataTable from '../components/ui/DataTable';
 import MetricCard from '../components/ui/MetricCard';
@@ -16,6 +17,7 @@ const formatDate = (d) => {
 
 export default function Administracion() {
   const { canWrite } = useAuth();
+  const { search } = useSearch();
   const [tab, setTab] = useState('finanzas');
   
   const [tesoreria, setTesoreria] = useState({ ingresos: 0, egresos: 0, saldo: 0 });
@@ -153,7 +155,7 @@ export default function Administracion() {
         >
           <DataTable
             columns={txCols}
-            data={txs}
+            data={txs.filter(t => !search || t.descripcion?.toLowerCase().includes(search.toLowerCase()) || t.tipo?.toLowerCase().includes(search.toLowerCase()))}
             page={txPage}
             totalPages={txTotalPages}
             total={txTotalPages * 10}
@@ -169,7 +171,7 @@ export default function Administracion() {
         >
           <DataTable
             columns={empCols}
-            data={emps}
+            data={emps.filter(e => !search || e.nombre?.toLowerCase().includes(search.toLowerCase()) || e.dni?.toLowerCase().includes(search.toLowerCase()) || e.cargo?.toLowerCase().includes(search.toLowerCase()))}
             page={empPage}
             totalPages={empTotalPages}
             total={empTotalPages * 10}

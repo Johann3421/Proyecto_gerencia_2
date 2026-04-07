@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { comercialAPI } from '../api';
 import { useAuth } from '../hooks/useAuth';
+import { useSearch } from '../components/Topbar';
 import Panel from '../components/ui/Panel';
 import DataTable from '../components/ui/DataTable';
 import Button from '../components/ui/Button';
@@ -12,6 +13,7 @@ const formatDate = (d) => new Date(d).toLocaleDateString('es-PE');
 
 export default function Comercial() {
   const { canWrite } = useAuth();
+  const { search } = useSearch();
   const [tab, setTab] = useState('ventas');
   
   const [ventas, setVentas] = useState([]);
@@ -137,13 +139,13 @@ export default function Comercial() {
 
       {tab === 'ventas' && (
         <Panel title="Registro de Ventas" actions={canWrite && <Button variant="primary" onClick={() => setShowVentaModal(true)}>Nueva Venta</Button>}>
-          <DataTable columns={vCols} data={ventas} page={vPage} totalPages={vTotal} total={vTotal*10} onPageChange={setVPage} />
+          <DataTable columns={vCols} data={ventas.filter(v => !search || v.folio?.toLowerCase().includes(search.toLowerCase()) || v.cliente_nombre?.toLowerCase().includes(search.toLowerCase()) || v.vendedor_nombre?.toLowerCase().includes(search.toLowerCase()))} page={vPage} totalPages={vTotal} total={vTotal*10} onPageChange={setVPage} />
         </Panel>
       )}
 
       {tab === 'clientes' && (
         <Panel title="Directorio de Clientes" actions={canWrite && <Button variant="primary" onClick={() => setShowCliModal(true)}>Nuevo Cliente</Button>}>
-          <DataTable columns={cCols} data={clientes} page={cPage} totalPages={cTotal} total={cTotal*10} onPageChange={setCPage} />
+          <DataTable columns={cCols} data={clientes.filter(c => !search || c.nombre?.toLowerCase().includes(search.toLowerCase()) || c.ruc?.toLowerCase().includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase()))} page={cPage} totalPages={cTotal} total={cTotal*10} onPageChange={setCPage} />
         </Panel>
       )}
 

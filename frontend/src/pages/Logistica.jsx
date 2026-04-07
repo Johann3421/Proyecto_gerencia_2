@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { logisticaAPI } from '../api';
 import { useAuth } from '../hooks/useAuth';
+import { useSearch } from '../components/Topbar';
 import Panel from '../components/ui/Panel';
 import DataTable from '../components/ui/DataTable';
 import MetricCard from '../components/ui/MetricCard';
@@ -13,6 +14,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('es-PE') : '-';
 
 export default function Logistica() {
   const { canWrite } = useAuth();
+  const { search } = useSearch();
   const [tab, setTab] = useState('inventario');
   const [metrics, setMetrics] = useState({});
 
@@ -167,20 +169,20 @@ export default function Logistica() {
       </div>
 
       {tab === 'inventario' && (
-        <Panel title="Maestro de Productos" actions={canWrite && <Button variant="primary" onClick={() => setShowProdModal(true)}>Nuevo SKU</Button>}>
-          <DataTable columns={pCols} data={prods} page={pPage} totalPages={pTotal} total={pTotal * 10} onPageChange={setPPage} rowClassName={rowClass} />
+        <Panel title="Catálogo de Productos" actions={canWrite && <Button variant="primary" onClick={() => setShowProdModal(true)}>Nuevo Producto</Button>}>
+          <DataTable columns={pCols} data={prods.filter(p => !search || p.nombre?.toLowerCase().includes(search.toLowerCase()) || p.sku?.toLowerCase().includes(search.toLowerCase()))} page={pPage} totalPages={pTotal} total={pTotal*10} onPageChange={setPPage} rowClassName={rowClass} />
         </Panel>
       )}
 
       {tab === 'compras' && (
-        <Panel title="Registro de Compras a Proveedores" actions={canWrite && <Button variant="primary" onClick={() => setShowOcModal(true)}>Nueva OC</Button>}>
-          <DataTable columns={oCols} data={ocs} page={oPage} totalPages={oTotal} total={oTotal * 10} onPageChange={setOPage} />
+        <Panel title="Órdenes de Compra" actions={canWrite && <Button variant="primary" onClick={() => setShowOcModal(true)}>Nueva OC</Button>}>
+          <DataTable columns={oCols} data={ocs.filter(o => !search || o.folio?.toLowerCase().includes(search.toLowerCase()) || o.proveedor?.toLowerCase().includes(search.toLowerCase()))} page={oPage} totalPages={oTotal} total={oTotal*10} onPageChange={setOPage} />
         </Panel>
       )}
 
       {tab === 'distribucion' && (
-        <Panel title="Rutas y Envíos" actions={canWrite && <Button variant="primary" onClick={() => setShowDistModal(true)}>Generar Despacho</Button>}>
-          <DataTable columns={dCols} data={dists} page={dPage} totalPages={dTotal} total={dTotal * 10} onPageChange={setDPage} />
+        <Panel title="Rutas de Distribución" actions={canWrite && <Button variant="primary" onClick={() => setShowDistModal(true)}>Nueva Ruta</Button>}>
+          <DataTable columns={dCols} data={dists.filter(d => !search || d.folio?.toLowerCase().includes(search.toLowerCase()) || d.destino?.toLowerCase().includes(search.toLowerCase()) || d.transportista?.toLowerCase().includes(search.toLowerCase()))} page={dPage} totalPages={dTotal} total={dTotal*10} onPageChange={setDPage} />
         </Panel>
       )}
 

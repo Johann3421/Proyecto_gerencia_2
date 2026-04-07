@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { techAPI } from '../api';
 import { useAuth } from '../hooks/useAuth';
+import { useSearch } from '../components/Topbar';
 import Panel from '../components/ui/Panel';
 import DataTable from '../components/ui/DataTable';
 import Button from '../components/ui/Button';
@@ -11,6 +12,7 @@ const formatDate = (d) => new Date(d).toLocaleDateString('es-PE', { day: '2-digi
 
 export default function Tecnologia() {
   const { canWrite } = useAuth();
+  const { search } = useSearch();
   const [tickets, setTickets] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -85,7 +87,7 @@ export default function Tecnologia() {
       >
         <DataTable
           columns={cols}
-          data={tickets}
+          data={tickets.filter(t => !search || t.folio?.toLowerCase().includes(search.toLowerCase()) || t.titulo?.toLowerCase().includes(search.toLowerCase()) || t.asignado_nombre?.toLowerCase().includes(search.toLowerCase()))}
           page={page}
           totalPages={totalPages}
           total={totalPages * 10}

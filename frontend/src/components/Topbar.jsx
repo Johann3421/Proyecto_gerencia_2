@@ -102,7 +102,7 @@ export default function Topbar() {
           {showNotif && (
             <div style={{
               position: 'absolute', top: '45px', right: '-10px', width: '280px',
-              background: 'var(--bg-panel)', border: '1px solid var(--border-color)',
+              background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
               borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 100, padding: '16px'
             }}>
               <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: 'var(--text-secondary)' }}>Notificaciones (1)</h4>
@@ -137,7 +137,7 @@ export default function Topbar() {
             {showMenu && (
               <div style={{
                 position: 'absolute', top: '55px', right: 0, minWidth: '200px',
-                background: 'var(--bg-panel)', border: '1px solid var(--border-color)',
+                background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
                 borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 100,
                 overflow: 'hidden'
               }}>

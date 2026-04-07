@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { usuariosAPI } from '../api';
 import { useAuth } from '../hooks/useAuth';
-import { getAvatarColor, getInitials, getRoleBadgeClass, formatRol } from '../components/Topbar';
+import { getAvatarColor, getInitials, getRoleBadgeClass, formatRol, useSearch } from '../components/Topbar';
 import Panel from '../components/ui/Panel';
 import DataTable from '../components/ui/DataTable';
 import Button from '../components/ui/Button';
@@ -11,6 +11,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('es-PE') : 'Nunca';
 
 export default function Usuarios() {
   const { isSuperAdmin, canDelete } = useAuth();
+  const { search } = useSearch();
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(1);
@@ -87,7 +88,7 @@ export default function Usuarios() {
 
       <div className="dashboard-grid">
         <Panel title="Directorio de Cuentas" className="flex-1" actions={canDelete && <Button variant="primary" onClick={() => setShowModal(true)}>Nueva Cuenta</Button>}>
-          <DataTable columns={cols} data={users} page={page} totalPages={total} total={total*10} onPageChange={setPage} />
+          <DataTable columns={cols} data={users.filter(u => !search || u.nombre?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()) || u.rol?.toLowerCase().includes(search.toLowerCase()))} page={page} totalPages={total} total={total*10} onPageChange={setPage} />
         </Panel>
 
         <Panel title="Jerarquía de Roles">

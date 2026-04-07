@@ -798,6 +798,261 @@ function TabTesoreria({ canWrite, search }) {
 }
 
 /* ─────────────────────────────────────────
+   LEGALES
+───────────────────────────────────────── */
+function TabLegales({ canWrite, search }) {
+  const [contratos, setContratos] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [stats, setStats] = useState({ total: 0, vigentes: 0, por_vencer: 0, vencidos: 0 });
+  const [tipoFilter, setTipoFilter] = useState('');
+  const [estadoFilter, setEstadoFilter] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    titulo: '', tipo: 'OTROS', contraparte: '', descripcion: '',
+    fecha_inicio: new Date().toISOString().split('T')[0],
+    fecha_vencimiento: '', monto: '', moneda: 'PEN',
+  });
+
+  const chipStyle = (active) => ({
+    padding: '5px 14px', borderRadius: 20, fontSize: '12px', fontWeight: 600,
+    cursor: 'pointer', border: '1.5px solid var(--border-color)',
+    background: active ? 'var(--color-brand)' : 'var(--bg-primary)',
+    color: active ? '#fff' : 'var(--text-secondary)',
+  });
+
+  const fetchContratos = useCallback(async (p = 1) => {
+    const params = { page: p };
+    if (tipoFilter) params.tipo = tipoFilter;
+    if (estadoFilter) params.estado = estadoFilter;
+    const { data } = await adminAPI.getContratos(params);
+    setContratos(data.data || data);
+    setPage(data.page || 1);
+    setTotalPages(data.totalPages || 1);
+    setStats(data.stats || { total: 0, vigentes: 0, por_vencer: 0, vencidos: 0 });
+  }, [tipoFilter, estadoFilter]);
+
+  useEffect(() => { fetchContratos(1); }, [fetchContratos]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await adminAPI.createContrato({
+        ...form,
+        monto: parseFloat(form.monto) || null,
+        fecha_vencimiento: form.fecha_vencimiento || null,
+      });
+      setShowModal(false);
+      setForm({ titulo: '', tipo: 'OTROS', contraparte: '', descripcion: '',
+        fecha_inicio: new Date().toISOString().split('T')[0], fecha_vencimiento: '', monto: '', moneda: 'PEN' });
+      fetchContratos(1);
+    } catch { alert('Error creando contrato'); }
+    finally { setLoading(false); }
+  };
+
+  const handleEstado = async (id, estado) => {
+    try {
+      await adminAPI.actualizarContratoEstado(id, { estado });
+      setSelected(prev => ({ ...prev, estado }));
+      fetchContratos(page);
+    } catch { alert('Error actualizando estado'); }
+  };
+
+  const diasRestantes = (fecha) => {
+    if (!fecha) return null;
+    const diff = Math.ceil((new Date(fecha) - new Date()) / (1000 * 60 * 60 * 24));
+    return diff;
+  };
+
+  const cols = [
+    { key: 'folio', label: 'Folio', mono: true, width: 100 },
+    { key: 'titulo', label: 'Contrato' },
+    { key: 'tipo', label: 'Tipo', render: v => <StatusPill status={v} />, width: 120 },
+    { key: 'contraparte', label: 'Contraparte' },
+    { key: 'monto', label: 'Monto', render: (v, row) => v ? formatCurrency(v, row.moneda) : '—', width: 130 },
+    { key: 'fecha_vencimiento', label: 'Vencimiento', render: v => formatDate(v), width: 120 },
+    { key: 'estado', label: 'Estado', render: v => <StatusPill status={v} />, width: 110 },
+  ];
+
+  const filtered = contratos.filter(c =>
+    !search ||
+    c.titulo?.toLowerCase().includes(search.toLowerCase()) ||
+    c.contraparte?.toLowerCase().includes(search.toLowerCase()) ||
+    c.folio?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div>
+      <div className="metrics-grid" style={{ marginBottom: 20 }}>
+        <MetricCard label="Total Contratos" value={stats.total} />
+        <MetricCard label="Vigentes" value={stats.vigentes} positive />
+        <MetricCard label="Por Vencer" value={stats.por_vencer} />
+        <MetricCard label="Vencidos" value={stats.vencidos} />
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        {['', 'LABORAL', 'PROVEEDOR', 'CLIENTE', 'ARRENDAMIENTO', 'SERVICIOS', 'OTROS'].map((t, i) => (
+          <button key={i} style={chipStyle(tipoFilter === t)} onClick={() => setTipoFilter(t)}>
+            {t || 'Todos los tipos'}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {['', 'BORRADOR', 'VIGENTE', 'POR_VENCER', 'VENCIDO', 'CANCELADO'].map((e, i) => (
+          <button key={i} style={chipStyle(estadoFilter === e)} onClick={() => setEstadoFilter(e)}>
+            {e || 'Todos los estados'}
+          </button>
+        ))}
+      </div>
+
+      <Panel
+        title="Contratos y Acuerdos Legales"
+        actions={canWrite && <Button variant="primary" onClick={() => setShowModal(true)}>+ Nuevo Contrato</Button>}
+      >
+        <DataTable
+          columns={cols}
+          data={filtered}
+          page={page}
+          totalPages={totalPages}
+          total={totalPages * 10}
+          onPageChange={p => { setPage(p); fetchContratos(p); }}
+          onRowClick={r => { setSelected(r); setShowDetail(true); }}
+          emptyMessage="No hay contratos registrados"
+        />
+      </Panel>
+
+      {showDetail && selected && (
+        <Modal title={`${selected.folio} — ${selected.titulo}`} onClose={() => setShowDetail(false)} width="600px">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4 }}>Tipo</div>
+              <StatusPill status={selected.tipo} />
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4 }}>Estado</div>
+              <StatusPill status={selected.estado} />
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4 }}>Contraparte</div>
+              <div style={{ fontWeight: 600 }}>{selected.contraparte || '—'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4 }}>Monto</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '18px' }}>
+                {selected.monto ? formatCurrency(selected.monto, selected.moneda) : '—'}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4 }}>Fecha Inicio</div>
+              <div>{formatDate(selected.fecha_inicio)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4 }}>Vencimiento</div>
+              <div>
+                {formatDate(selected.fecha_vencimiento)}
+                {(() => {
+                  const d = diasRestantes(selected.fecha_vencimiento);
+                  if (d === null) return null;
+                  const color = d < 0 ? 'var(--status-err-text)' : d <= 30 ? 'var(--status-warn-text)' : 'var(--text-tertiary)';
+                  return <span style={{ marginLeft: 8, fontSize: '12px', color }}>
+                    {d < 0 ? `Venció hace ${Math.abs(d)}d` : `${d}d restantes`}
+                  </span>;
+                })()}
+              </div>
+            </div>
+            <div style={{ gridColumn: '1/3' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4 }}>Descripción</div>
+              <div style={{ padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border-color)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                {selected.descripcion || <i style={{ color: 'var(--text-tertiary)' }}>Sin descripción</i>}
+              </div>
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 16, display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {canWrite && selected.estado === 'BORRADOR' && <Button variant="primary" onClick={() => handleEstado(selected.id, 'VIGENTE')}>Activar Contrato</Button>}
+              {canWrite && selected.estado === 'VIGENTE' && <Button onClick={() => handleEstado(selected.id, 'CANCELADO')}>Cancelar</Button>}
+              {canWrite && !['CANCELADO', 'VENCIDO'].includes(selected.estado) && (
+                <Button onClick={() => handleEstado(selected.id, 'VENCIDO')}>Marcar Vencido</Button>
+              )}
+            </div>
+            <Button onClick={() => setShowDetail(false)}>Cerrar</Button>
+          </div>
+        </Modal>
+      )}
+
+      {showModal && (
+        <Modal title="Nuevo Contrato" onClose={() => setShowModal(false)} width="580px">
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label className="form-label">Título del Contrato</label>
+              <input type="text" className="form-input" required value={form.titulo}
+                onChange={e => setForm({ ...form, titulo: e.target.value })}
+                placeholder="Ej: Contrato Servicio — Proveedor XYZ" />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-group">
+                <label className="form-label">Tipo de Contrato</label>
+                <select className="form-input" value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })}>
+                  <option value="LABORAL">Laboral</option>
+                  <option value="PROVEEDOR">Proveedor</option>
+                  <option value="CLIENTE">Cliente</option>
+                  <option value="ARRENDAMIENTO">Arrendamiento</option>
+                  <option value="SERVICIOS">Servicios</option>
+                  <option value="OTROS">Otros</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Contraparte</label>
+                <input type="text" className="form-input" value={form.contraparte}
+                  onChange={e => setForm({ ...form, contraparte: e.target.value })}
+                  placeholder="Empresa o persona" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Monto</label>
+                <input type="number" step="0.01" className="form-input" value={form.monto}
+                  onChange={e => setForm({ ...form, monto: e.target.value })} placeholder="0.00" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Moneda</label>
+                <select className="form-input" value={form.moneda} onChange={e => setForm({ ...form, moneda: e.target.value })}>
+                  <option value="PEN">PEN — Soles</option>
+                  <option value="USD">USD — Dólares</option>
+                  <option value="EUR">EUR — Euros</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Fecha de Inicio</label>
+                <input type="date" className="form-input" required value={form.fecha_inicio}
+                  onChange={e => setForm({ ...form, fecha_inicio: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Fecha de Vencimiento</label>
+                <input type="date" className="form-input" value={form.fecha_vencimiento}
+                  onChange={e => setForm({ ...form, fecha_vencimiento: e.target.value })} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Descripción / Alcance</label>
+              <textarea className="form-input" rows={3} value={form.descripcion}
+                onChange={e => setForm({ ...form, descripcion: e.target.value })}
+                placeholder="Describe el alcance y condiciones del contrato..." />
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={() => setShowModal(false)}>Cancelar</Button>
+              <Button type="submit" variant="primary" disabled={loading}>{loading ? 'Creando...' : 'Crear Contrato'}</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
    MAIN PAGE
 ───────────────────────────────────────── */
 export default function Administracion() {

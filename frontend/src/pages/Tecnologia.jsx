@@ -5,6 +5,7 @@ import Panel from '../components/ui/Panel';
 import DataTable from '../components/ui/DataTable';
 import Button from '../components/ui/Button';
 import StatusPill from '../components/ui/StatusPill';
+import Modal from '../components/ui/Modal';
 
 const formatDate = (d) => new Date(d).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -14,6 +15,10 @@ export default function Tecnologia() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [tab, setTab] = useState('SOPORTE');
+
+  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ titulo: '', descripcion: '', prioridad: 'MEDIA' });
 
   const fetchTickets = async (p = 1) => {
     const { data } = await techAPI.getTickets({ page: p, tipo: tab });
@@ -26,6 +31,21 @@ export default function Tecnologia() {
     fetchTickets(page);
   }, [page, tab]);
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await techAPI.createTicket({ ...form, tipo: tab });
+      setShowModal(false);
+      setForm({ titulo: '', descripcion: '', prioridad: 'MEDIA' });
+      fetchTickets(1);
+    } catch (err) {
+      alert('Error creando elemento');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const cols = [
     { key: 'folio', label: 'Folio', mono: true },
     { key: 'titulo', label: 'Asunto' },
@@ -34,6 +54,13 @@ export default function Tecnologia() {
     { key: 'asignado_nombre', label: 'Asignado a', render: v => v || '-' },
     { key: 'created_at', label: 'Fecha', render: formatDate },
   ];
+
+  const modalTitles = {
+    'SOPORTE': 'Nuevo Ticket de Soporte',
+    'POSTVENTA': 'Reporte de Postventa',
+    'DESARROLLO': 'Requerimiento de Desarrollo',
+    'INFRAESTRUCTURA': 'Nueva Infraestructura/Activo'
+  };
 
   return (
     <div>
@@ -53,8 +80,8 @@ export default function Tecnologia() {
       </div>
 
       <Panel
-        title={`Tickets de ${tab.charAt(0) + tab.slice(1).toLowerCase()}`}
-        actions={canWrite && <Button variant="primary">Nuevo Ticket</Button>}
+        title={`Registros de ${tab.charAt(0) + tab.slice(1).toLowerCase()}`}
+        actions={canWrite && <Button variant="primary" onClick={() => setShowModal(true)}>Nuevo Registro</Button>}
       >
         <DataTable
           columns={cols}
@@ -65,6 +92,34 @@ export default function Tecnologia() {
           onPageChange={setPage}
         />
       </Panel>
+
+      {showModal && (
+        <Modal title={modalTitles[tab]} onClose={() => setShowModal(false)}>
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label className="form-label">Asunto / Nombre del elemento</label>
+              <input type="text" className="form-input" required value={form.titulo} onChange={e => setForm({...form, titulo: e.target.value})} placeholder="Ej: Falla en equipo, Servidor AWS..." />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Descripción</label>
+              <textarea className="form-input" required rows={3} value={form.descripcion} onChange={e => setForm({...form, descripcion: e.target.value})}></textarea>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Nivel de Prioridad / Criticidad</label>
+              <select className="form-input" value={form.prioridad} onChange={e => setForm({...form, prioridad: e.target.value})}>
+                <option value="BAJA">Baja / Trivial</option>
+                <option value="MEDIA">Media / Estándar</option>
+                <option value="ALTA">Alta / Urgente</option>
+                <option value="CRITICA">Crítica / Bloqueante</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={() => setShowModal(false)}>Cancelar</Button>
+              <Button type="submit" variant="primary" disabled={loading}>{loading ? 'Guardando...' : 'Crear Registro'}</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

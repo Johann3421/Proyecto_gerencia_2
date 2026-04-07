@@ -33,7 +33,7 @@ services:
       PORT: 3001
       NODE_ENV: ${NODE_ENV:-production}
     ports:
-      - "3001:3001"
+      - "3002:3001"
 
   frontend:
     build: ./frontend

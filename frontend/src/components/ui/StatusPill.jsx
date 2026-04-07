@@ -19,11 +19,21 @@ const STATUS_MAP = {
   EN_TRANSITO: 'info',
   // Transacciones
   INGRESO: 'ok', EGRESO: 'err',
+  // Contabilidad
+  REGISTRADO: 'ok', ANULADO: 'err',
+  // Tesorería
+  COMPLETADO: 'ok', VENCIDO: 'err',
+  COBRO: 'info', PAGO: 'warn',
+  CORRIENTE: 'info', AHORROS: 'ok',
+  // Moneda
+  PEN: 'ok', USD: 'info', EUR: 'warn',
+  // Tipo cuenta contable
+  ACTIVO_CONTA: 'ok', PASIVO: 'err', PATRIMONIO: 'info', GASTO: 'warn',
 };
 
-export default function StatusPill({ status, className = '' }) {
+export default function StatusPill({ status, label: customLabel, className = '' }) {
   const variant = STATUS_MAP[status] || 'info';
-  const label = (status || '').replace(/_/g, ' ');
+  const label = customLabel || (status || '').replace(/_/g, ' ');
   return (
     <span className={`status-pill ${variant} ${className}`}>
       {label}

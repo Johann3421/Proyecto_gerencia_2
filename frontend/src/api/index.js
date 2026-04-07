@@ -64,6 +64,18 @@ export const adminAPI = {
   createEmpleado: (data) => api.post('/administracion/empleados', data),
   updateEmpleado: (id, data) => api.put(`/administracion/empleados/${id}`, data),
   getTesoreria: () => api.get('/administracion/tesoreria'),
+  // Contabilidad
+  getPlanCuentas: () => api.get('/administracion/plan-cuentas'),
+  createCuentaContable: (data) => api.post('/administracion/plan-cuentas', data),
+  getAsientos: (params) => api.get('/administracion/asientos', { params }),
+  createAsiento: (data) => api.post('/administracion/asientos', data),
+  getAsiento: (id) => api.get(`/administracion/asientos/${id}`),
+  // Tesorería
+  getCuentasBancarias: () => api.get('/administracion/cuentas-bancarias'),
+  createCuentaBancaria: (data) => api.post('/administracion/cuentas-bancarias', data),
+  getPagosProgramados: (params) => api.get('/administracion/pagos-programados', { params }),
+  createPagoProgramado: (data) => api.post('/administracion/pagos-programados', data),
+  completarPago: (id) => api.put(`/administracion/pagos-programados/${id}/completar`),
 };
 
 /* ── Tecnologia ── */

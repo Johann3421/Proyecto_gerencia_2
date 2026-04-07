@@ -199,6 +199,97 @@ const seed = async () => {
       );
     }
 
+    // ── PLAN DE CUENTAS + CONTABILIDAD + TESORERÍA (conditional) ──
+    const cuentasExist = await query('SELECT COUNT(*) FROM plan_cuentas');
+    if (parseInt(cuentasExist.rows[0].count) === 0) {
+      // Plan de cuentas PCGE simplificado
+      const planCuentas = [
+        ['1.1.1', 'Caja', 'ACTIVO', 1],
+        ['1.1.2', 'Bancos', 'ACTIVO', 1],
+        ['1.2.1', 'Cuentas por Cobrar Comerciales', 'ACTIVO', 1],
+        ['1.3.1', 'Inventarios', 'ACTIVO', 1],
+        ['1.4.1', 'Activos Fijos', 'ACTIVO', 1],
+        ['2.1.1', 'Cuentas por Pagar Comerciales', 'PASIVO', 1],
+        ['2.1.2', 'Tributos por Pagar (IGV)', 'PASIVO', 1],
+        ['2.2.1', 'Obligaciones Financieras', 'PASIVO', 1],
+        ['3.1.1', 'Capital Social', 'PATRIMONIO', 1],
+        ['3.2.1', 'Resultados Acumulados', 'PATRIMONIO', 1],
+        ['4.1.1', 'Ventas de Mercaderías', 'INGRESO', 1],
+        ['4.1.2', 'Ingresos por Servicios', 'INGRESO', 1],
+        ['5.1.1', 'Costo de Ventas', 'GASTO', 1],
+        ['5.2.1', 'Gastos Administrativos', 'GASTO', 1],
+        ['5.2.2', 'Gastos de Ventas y Marketing', 'GASTO', 1],
+        ['5.2.3', 'Gastos Financieros', 'GASTO', 1],
+      ];
+      for (const [codigo, nombre, tipo, nivel] of planCuentas) {
+        await query(
+          `INSERT INTO plan_cuentas (codigo, nombre, tipo, nivel) VALUES ($1,$2,$3,$4)`,
+          [codigo, nombre, tipo, nivel]
+        );
+      }
+
+      // Asientos contables de ejemplo
+      const asientos = [
+        { folio: 'CT-00001', fecha: '2026-04-01', descripcion: 'Cobro venta VT-00001 — Distribuidora Lima SAC', referencia: 'VT-00001', estado: 'REGISTRADO', debe: 15000, haber: 15000, creado_por: 1,
+          lineas: [[2, 'Depósito en cuenta BCP', 15000, 0], [11, 'Reconocimiento de ingreso por venta', 0, 15000]] },
+        { folio: 'CT-00002', fecha: '2026-04-02', descripcion: 'Pago servicios públicos abril — ENEL y Sedapal', referencia: 'SERV-ABR-01', estado: 'REGISTRADO', debe: 1500, haber: 1500, creado_por: 1,
+          lineas: [[14, 'Gasto servicios públicos administrativos', 1500, 0], [2, 'Pago desde cuenta bancaria', 0, 1500]] },
+        { folio: 'CT-00003', fecha: '2026-04-03', descripcion: 'Ingreso servicio mantenimiento preventivo — Tech Solutions', referencia: 'TK-0003', estado: 'BORRADOR', debe: 6700, haber: 6700, creado_por: 1,
+          lineas: [[3, 'Cuenta por cobrar por servicio TI', 6700, 0], [12, 'Ingreso reconocido por servicio técnico', 0, 6700]] },
+      ];
+
+      for (const a of asientos) {
+        const res = await query(
+          `INSERT INTO asientos_contables (folio, fecha, descripcion, referencia, estado, total_debe, total_haber, creado_por)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+          [a.folio, a.fecha, a.descripcion, a.referencia, a.estado, a.debe, a.haber, a.creado_por]
+        );
+        const asientoId = res.rows[0].id;
+        for (const [cuentaOffset, desc, debe, haber] of a.lineas) {
+          // cuentaOffset is 1-based position in planCuentas array
+          const cuentaRes = await query('SELECT id FROM plan_cuentas ORDER BY id LIMIT 1 OFFSET $1', [cuentaOffset - 1]);
+          const cuentaId = cuentaRes.rows[0]?.id || cuentaOffset;
+          await query(
+            `INSERT INTO asiento_lineas (asiento_id, cuenta_id, descripcion, debe, haber) VALUES ($1,$2,$3,$4,$5)`,
+            [asientoId, cuentaId, desc, debe, haber]
+          );
+        }
+      }
+
+      // Cuentas bancarias
+      const bancos = [
+        ['BCP', '191-1234567-0-12', 'CORRIENTE', 'PEN', 45820.50],
+        ['Interbank', '200-3001234567', 'CORRIENTE', 'PEN', 22350.00],
+        ['BBVA', '0011-0175-01-00234567', 'AHORROS', 'USD', 15000.00],
+        ['Scotiabank', '000-2134567', 'CORRIENTE', 'PEN', 8750.75],
+      ];
+      for (const [banco, numero, tipo, moneda, saldo] of bancos) {
+        await query(
+          `INSERT INTO cuentas_bancarias (banco, numero_cuenta, tipo, moneda, saldo_actual) VALUES ($1,$2,$3,$4,$5)`,
+          [banco, numero, tipo, moneda, saldo]
+        );
+      }
+
+      // Pagos programados
+      const pagos = [
+        ['Cobro pendiente — Importadora Callao EIRL', 8200, 'COBRO', '2026-04-10', 'PENDIENTE', 1, 'VT-00002'],
+        ['Cobro pendiente — Tech Solutions Perú', 4500, 'COBRO', '2026-04-15', 'PENDIENTE', 1, 'VT-00004'],
+        ['Cobro completado — Distribuidora Lima SAC', 15000, 'COBRO', '2026-04-01', 'COMPLETADO', 2, 'VT-00001'],
+        ['Pago planilla quincenal mayo', 14000, 'PAGO', '2026-04-15', 'PENDIENTE', 1, 'NOM-ABR-02'],
+        ['Pago proveedor equipos networking', 9800, 'PAGO', '2026-04-12', 'VENCIDO', 4, 'OC-00042'],
+        ['Pago servicios cloud AWS', 2300, 'PAGO', '2026-04-30', 'PENDIENTE', 2, 'AWS-ABR-26'],
+      ];
+      for (const [desc, monto, tipo, fecha, estado, cuentaIdx, ref] of pagos) {
+        const cuentaRes = await query('SELECT id FROM cuentas_bancarias ORDER BY id LIMIT 1 OFFSET $1', [cuentaIdx - 1]);
+        const cuentaId = cuentaRes.rows[0]?.id;
+        await query(
+          `INSERT INTO pagos_programados (descripcion, monto, tipo, fecha_vencimiento, estado, cuenta_bancaria_id, referencia)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [desc, monto, tipo, fecha, estado, cuentaId, ref]
+        );
+      }
+    }
+
     console.log('✅ Seed completado exitosamente');
     console.log('📧 Login: admin@nexo.pe / Admin1234!');
   } catch (err) {

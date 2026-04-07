@@ -64,6 +64,30 @@ const initDB = async () => {
     DO $$ BEGIN
       CREATE TYPE dist_estado AS ENUM('PENDIENTE','EN_TRANSITO','ENTREGADO','CANCELADO');
     EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE cuenta_tipo AS ENUM('ACTIVO','PASIVO','PATRIMONIO','INGRESO','GASTO');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE asiento_estado AS ENUM('BORRADOR','REGISTRADO','ANULADO');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE pago_tipo AS ENUM('PAGO','COBRO');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE pago_estado AS ENUM('PENDIENTE','COMPLETADO','VENCIDO');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE cuenta_bancaria_tipo AS ENUM('CORRIENTE','AHORROS');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE moneda_enum AS ENUM('PEN','USD','EUR');
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
   `);
 
   await query(`
@@ -234,6 +258,66 @@ const initDB = async () => {
       observaciones TEXT,
       inspector_id INT REFERENCES usuarios(id),
       fecha DATE DEFAULT CURRENT_DATE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    /* ── CONTABILIDAD ── */
+    CREATE TABLE IF NOT EXISTS plan_cuentas (
+      id SERIAL PRIMARY KEY,
+      codigo VARCHAR(10) UNIQUE NOT NULL,
+      nombre VARCHAR(200) NOT NULL,
+      tipo cuenta_tipo NOT NULL,
+      nivel INT NOT NULL DEFAULT 1,
+      activo BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS asientos_contables (
+      id SERIAL PRIMARY KEY,
+      folio VARCHAR(20) UNIQUE NOT NULL,
+      fecha DATE DEFAULT CURRENT_DATE,
+      descripcion TEXT NOT NULL,
+      referencia VARCHAR(100),
+      estado asiento_estado DEFAULT 'BORRADOR',
+      total_debe NUMERIC(12,2) DEFAULT 0,
+      total_haber NUMERIC(12,2) DEFAULT 0,
+      creado_por INT REFERENCES usuarios(id),
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS asiento_lineas (
+      id SERIAL PRIMARY KEY,
+      asiento_id INT REFERENCES asientos_contables(id) ON DELETE CASCADE,
+      cuenta_id INT REFERENCES plan_cuentas(id),
+      descripcion TEXT,
+      debe NUMERIC(12,2) DEFAULT 0,
+      haber NUMERIC(12,2) DEFAULT 0
+    );
+
+    /* ── TESORERÍA ── */
+    CREATE TABLE IF NOT EXISTS cuentas_bancarias (
+      id SERIAL PRIMARY KEY,
+      banco VARCHAR(100) NOT NULL,
+      numero_cuenta VARCHAR(50) NOT NULL,
+      tipo cuenta_bancaria_tipo NOT NULL DEFAULT 'CORRIENTE',
+      moneda moneda_enum NOT NULL DEFAULT 'PEN',
+      saldo_actual NUMERIC(14,2) DEFAULT 0,
+      activo BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS pagos_programados (
+      id SERIAL PRIMARY KEY,
+      descripcion TEXT NOT NULL,
+      monto NUMERIC(12,2) NOT NULL,
+      tipo pago_tipo NOT NULL,
+      fecha_vencimiento DATE NOT NULL,
+      estado pago_estado DEFAULT 'PENDIENTE',
+      cuenta_bancaria_id INT REFERENCES cuentas_bancarias(id),
+      referencia VARCHAR(100),
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );

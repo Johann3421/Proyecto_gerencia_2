@@ -6,6 +6,7 @@ import DataTable from '../components/ui/DataTable';
 import MetricCard from '../components/ui/MetricCard';
 import Button from '../components/ui/Button';
 import StatusPill from '../components/ui/StatusPill';
+import Modal from '../components/ui/Modal';
 
 const formatCurrency = (val) => new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(val || 0);
 const formatDate = (d) => {
@@ -17,16 +18,23 @@ export default function Administracion() {
   const { canWrite } = useAuth();
   const [tab, setTab] = useState('finanzas');
   
-  // Tesoreria
   const [tesoreria, setTesoreria] = useState({ ingresos: 0, egresos: 0, saldo: 0 });
   const [txs, setTxs] = useState([]);
   const [txPage, setTxPage] = useState(1);
   const [txTotalPages, setTxTotalPages] = useState(1);
   
-  // RRHH
   const [emps, setEmps] = useState([]);
   const [empPage, setEmpPage] = useState(1);
   const [empTotalPages, setEmpTotalPages] = useState(1);
+
+  // Modals state
+  const [showTxModal, setShowTxModal] = useState(false);
+  const [showEmpModal, setShowEmpModal] = useState(false);
+  
+  // Forms state
+  const [txForm, setTxForm] = useState({ tipo: 'INGRESO', monto: '', descripcion: '', area: 'ADMINISTRACION' });
+  const [empForm, setEmpForm] = useState({ nombre: '', dni: '', cargo: '', salario: '', area: 'ADMINISTRACION' });
+  const [loading, setLoading] = useState(false);
 
   const fetchTesoreria = async () => {
     const { data } = await adminAPI.getTesoreria();
@@ -55,6 +63,48 @@ export default function Administracion() {
       fetchEmps(empPage);
     }
   }, [tab, txPage, empPage]);
+
+  const handleTxSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await adminAPI.createTransaccion({
+        tipo: txForm.tipo,
+        monto: parseFloat(txForm.monto),
+        descripcion: txForm.descripcion,
+        area: txForm.area
+      });
+      setShowTxModal(false);
+      setTxForm({ tipo: 'INGRESO', monto: '', descripcion: '', area: 'ADMINISTRACION' });
+      fetchTxs(txPage);
+      fetchTesoreria();
+    } catch (err) {
+      alert('Error creando transacción');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEmpSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await adminAPI.createEmpleado({
+        nombre: empForm.nombre,
+        dni: empForm.dni,
+        cargo: empForm.cargo,
+        salario: parseFloat(empForm.salario) || null,
+        area: empForm.area
+      });
+      setShowEmpModal(false);
+      setEmpForm({ nombre: '', dni: '', cargo: '', salario: '', area: 'ADMINISTRACION' });
+      fetchEmps(empPage);
+    } catch (err) {
+      alert('Error creando empleado');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const txCols = [
     { key: 'fecha', label: 'Fecha', render: formatDate },
@@ -99,14 +149,14 @@ export default function Administracion() {
       {tab === 'finanzas' && (
         <Panel
           title="Transacciones"
-          actions={canWrite && <Button variant="primary">Nueva Transacción</Button>}
+          actions={canWrite && <Button variant="primary" onClick={() => setShowTxModal(true)}>Nueva Transacción</Button>}
         >
           <DataTable
             columns={txCols}
             data={txs}
             page={txPage}
             totalPages={txTotalPages}
-            total={txTotalPages * 10} // Just for UI
+            total={txTotalPages * 10}
             onPageChange={setTxPage}
           />
         </Panel>
@@ -115,7 +165,7 @@ export default function Administracion() {
       {tab === 'rrhh' && (
         <Panel
           title="Empleados"
-          actions={canWrite && <Button variant="primary">Nuevo Empleado</Button>}
+          actions={canWrite && <Button variant="primary" onClick={() => setShowEmpModal(true)}>Nuevo Empleado</Button>}
         >
           <DataTable
             columns={empCols}
@@ -126,6 +176,80 @@ export default function Administracion() {
             onPageChange={setEmpPage}
           />
         </Panel>
+      )}
+
+      {/* Modals */}
+      {showTxModal && (
+        <Modal title="Nueva Transacción" onClose={() => setShowTxModal(false)}>
+          <form onSubmit={handleTxSubmit}>
+            <div className="form-group">
+              <label className="form-label">Tipo de Movimiento</label>
+              <select className="form-input" value={txForm.tipo} onChange={e => setTxForm({...txForm, tipo: e.target.value})}>
+                <option value="INGRESO">Ingreso (Cobro, Abono)</option>
+                <option value="EGRESO">Egreso (Gasto, Pago)</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Monto (S/)</label>
+              <input type="number" step="0.01" className="form-input" required value={txForm.monto} onChange={e => setTxForm({...txForm, monto: e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Descripción</label>
+              <input type="text" className="form-input" required value={txForm.descripcion} onChange={e => setTxForm({...txForm, descripcion: e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Área Imputada</label>
+              <select className="form-input" value={txForm.area} onChange={e => setTxForm({...txForm, area: e.target.value})}>
+                <option value="ADMINISTRACION">Administración</option>
+                <option value="TECNOLOGIA">Tecnología</option>
+                <option value="COMERCIAL">Comercial</option>
+                <option value="LOGISTICA">Logística</option>
+                <option value="PRODUCCION">Producción</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={() => setShowTxModal(false)}>Cancelar</Button>
+              <Button type="submit" variant="primary" disabled={loading}>{loading ? 'Guardando...' : 'Registrar Transacción'}</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {showEmpModal && (
+        <Modal title="Registrar Empleado" onClose={() => setShowEmpModal(false)}>
+          <form onSubmit={handleEmpSubmit}>
+            <div className="form-group">
+              <label className="form-label">Nombre Completo</label>
+              <input type="text" className="form-input" required value={empForm.nombre} onChange={e => setEmpForm({...empForm, nombre: e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">DNI</label>
+              <input type="text" className="form-input" required value={empForm.dni} onChange={e => setEmpForm({...empForm, dni: e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Cargo</label>
+              <input type="text" className="form-input" required value={empForm.cargo} onChange={e => setEmpForm({...empForm, cargo: e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Salario Base (S/)</label>
+              <input type="number" step="0.01" className="form-input" value={empForm.salario} onChange={e => setEmpForm({...empForm, salario: e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Área</label>
+              <select className="form-input" value={empForm.area} onChange={e => setEmpForm({...empForm, area: e.target.value})}>
+                <option value="ADMINISTRACION">Administración</option>
+                <option value="TECNOLOGIA">Tecnología</option>
+                <option value="COMERCIAL">Comercial</option>
+                <option value="LOGISTICA">Logística</option>
+                <option value="PRODUCCION">Producción</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={() => setShowEmpModal(false)}>Cancelar</Button>
+              <Button type="submit" variant="primary" disabled={loading}>{loading ? 'Guardando...' : 'Guardar Empleado'}</Button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   );

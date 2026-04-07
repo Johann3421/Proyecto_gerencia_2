@@ -6,7 +6,7 @@ const router = express.Router();
 /* ── TICKETS ── */
 router.get('/tickets', async (req, res) => {
   try {
-    const { estado, prioridad, page = 1 } = req.query;
+    const { estado, prioridad, tipo, page = 1 } = req.query;
     const limit = 10;
     const offset = (page - 1) * limit;
     let where = [];
@@ -15,6 +15,7 @@ router.get('/tickets', async (req, res) => {
 
     if (estado) { where.push(`t.estado = $${idx++}`); params.push(estado); }
     if (prioridad) { where.push(`t.prioridad = $${idx++}`); params.push(prioridad); }
+    if (tipo) { where.push(`t.tipo = $${idx++}`); params.push(tipo); }
 
     const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
     const countRes = await query(`SELECT COUNT(*) FROM tickets t ${whereClause}`, params);

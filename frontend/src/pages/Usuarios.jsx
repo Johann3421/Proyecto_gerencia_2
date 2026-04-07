@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { usuariosAPI } from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { getAvatarColor, getInitials, getRoleBadgeClass, formatRol, useSearch } from '../components/Topbar';
@@ -15,7 +16,8 @@ export default function Usuarios() {
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(1);
-  const [tab, setTab] = useState(isSuperAdmin || canDelete ? 'directorio' : 'perfil');
+  const location = useLocation();
+  const [tab, setTab] = useState(location.state?.tab || (isSuperAdmin || canDelete ? 'directorio' : 'perfil'));
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ nombre: '', email: '', password: '', rol: 'OPERARIO', area: 'ADMINISTRACION' });
@@ -34,6 +36,36 @@ export default function Usuarios() {
   useEffect(() => {
     if (tab === 'directorio') fetchUsers(page);
   }, [page, tab]);
+
+  useEffect(() => {
+    if (location.state?.tab) {
+      setTab(location.state.tab);
+    }
+  }, [location.state?.tab]);
+
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) processAvatarFile(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) processAvatarFile(file);
+  };
+
+  const processAvatarFile = (file) => {
+    if (!file.type.startsWith('image/')) return alert('Solo se permiten imágenes');
+    if (file.size > 2 * 1024 * 1024) return alert('La imagen debe pesar máximo 2MB');
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setProfileForm((prev) => ({ ...prev, avatar_url: e.target.result }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
@@ -121,16 +153,30 @@ export default function Usuarios() {
           <Panel title="Configuración de Cuenta" className="flex-1">
             <form onSubmit={handleProfileSubmit} style={{ maxWidth: '500px' }}>
               <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '24px' }}>
-                {profileForm.avatar_url ? (
-                  <div className="avatar" style={{ width: '80px', height: '80px', fontSize: '24px', backgroundImage: `url(${profileForm.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
-                ) : (
-                  <div className="avatar" style={{ width: '80px', height: '80px', fontSize: '24px', background: getAvatarColor(user?.nombre || '') }}>
-                    {getInitials(profileForm.nombre || user?.nombre || '')}
-                  </div>
-                )}
+                <div 
+                  style={{
+                    position: 'relative', width: '80px', height: '80px', borderRadius: '50%', overflow: 'hidden', 
+                    cursor: 'pointer', border: '2px dashed var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--primary-color)'; }}
+                  onDragLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; }}
+                  onDrop={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; handleDrop(e); }}
+                  title="Haz clic o arrastra una imagen"
+                >
+                  {profileForm.avatar_url ? (
+                    <div style={{ width: '100%', height: '100%', backgroundImage: `url(${profileForm.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: getAvatarColor(user?.nombre || ''), color: 'white', fontSize: '24px', fontWeight: 'bold' }}>
+                      {getInitials(profileForm.nombre || user?.nombre || '')}
+                    </div>
+                  )}
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.5)', color: 'white', fontSize: '10px', textAlign: 'center', padding: '2px 0' }}>Cambiar</div>
+                  <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+                </div>
                 <div style={{ flex: 1 }}>
-                  <label className="form-label">URL Foto de Perfil</label>
-                  <input type="url" className="form-input" placeholder="https://ejemplo.com/mifoto.jpg" value={profileForm.avatar_url} onChange={e => setProfileForm({...profileForm, avatar_url: e.target.value})} />
+                  <label className="form-label">Foto de Perfil</label>
+                  <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: '4px 0 0 0' }}>Sube una imagen (max 2MB). Puedes arrastrarla o hacer clic en el círculo.</p>
                 </div>
               </div>
               <div className="form-group">

@@ -149,7 +149,7 @@ export default function Topbar() {
                   <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>{user.email}</div>
                 </div>
                 <div style={{ padding: '8px' }}>
-                  <button onClick={() => { setShowMenu(false); navigate('/usuarios'); }} style={{
+                  <button onClick={() => { setShowMenu(false); navigate('/usuarios', { state: { tab: 'perfil' } }); }} style={{
                     width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', 
                     border: 'none', color: 'var(--text-secondary)', fontSize: '13px', borderRadius: '4px', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500, marginBottom: '4px'

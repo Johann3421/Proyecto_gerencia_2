@@ -5,6 +5,7 @@ import Panel from '../components/ui/Panel';
 import DataTable from '../components/ui/DataTable';
 import Button from '../components/ui/Button';
 import StatusPill from '../components/ui/StatusPill';
+import Modal from '../components/ui/Modal';
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('es-PE') : '-';
 
@@ -12,7 +13,7 @@ const OF_PIPELINE = ['PLANIFICADA', 'EN_PROCESO', 'CONTROL_CALIDAD', 'COMPLETADA
 
 function PipelineVisual({ estado }) {
   const currentIdx = OF_PIPELINE.indexOf(estado);
-  if (currentIdx === -1) return <StatusPill status={estado} />;
+  if (currentIdx === -1) return <div style={{ fontSize: '12px', opacity: 0.6 }}>{estado}</div>;
 
   return (
     <div className="pipeline">
@@ -21,7 +22,7 @@ function PipelineVisual({ estado }) {
           <div className={`pipeline-step ${i < currentIdx ? 'completed' : i === currentIdx ? 'active' : ''}`}>
             {step.replace('_', ' ')}
           </div>
-          {i < OF_PIPELINE.length - 1 && <span className="pipeline-arrow" style={{margin: '0 4px'}}>›</span>}
+          {i < OF_PIPELINE.length - 1 && <span className="pipeline-arrow" style={{margin: '0 4px', fontSize: '10px'}}>›</span>}
         </span>
       ))}
     </div>
@@ -29,36 +30,108 @@ function PipelineVisual({ estado }) {
 }
 
 export default function Produccion() {
-  const { canWrite } = useAuth();
+  const { canWrite, user } = useAuth();
   const [tab, setTab] = useState('ordenes');
   
   const [ordenes, setOrdenes] = useState([]);
   const [oPage, setOPage] = useState(1);
   const [oTotal, setOTotal] = useState(1);
+  const [allOrdenes, setAllOrdenes] = useState([]);
 
   const [insp, setInsp] = useState([]);
   const [iPage, setIPage] = useState(1);
   const [iTotal, setITotal] = useState(1);
 
+  // Modals state
+  const [showOFModal, setShowOFModal] = useState(false);
+  const [showInspModal, setShowInspModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Forms
+  const [ofForm, setOfForm] = useState({ producto: '', cantidad: 1, fecha_inicio: '', fecha_fin: '' });
+  const [iForm, setIForm] = useState({ orden_fabricacion_id: '', resultado: 'PENDIENTE', observaciones: '' });
+
+  const fetchOrdenes = async (p = 1) => {
+    const { data } = await produccionAPI.getOrdenes({ page: p });
+    setOrdenes(data.data); setOPage(data.page); setOTotal(data.totalPages);
+    if (p === 1) setAllOrdenes(data.data);
+  };
+
+  const fetchInspecciones = async (p = 1) => {
+    const { data } = await produccionAPI.getInspecciones({ page: p });
+    setInsp(data.data); setIPage(data.page); setITotal(data.totalPages);
+  };
+
   useEffect(() => {
     if (tab === 'ordenes') {
-      produccionAPI.getOrdenes({ page: oPage }).then(({ data }) => {
-        setOrdenes(data.data); setOPage(data.page); setOTotal(data.totalPages);
-      });
+      fetchOrdenes(oPage);
     } else if (tab === 'calidad') {
-      produccionAPI.getInspecciones({ page: iPage }).then(({ data }) => {
-        setInsp(data.data); setIPage(data.page); setITotal(data.totalPages);
-      });
+      fetchInspecciones(iPage);
+      if (allOrdenes.length === 0) fetchOrdenes(1);
     }
   }, [tab, oPage, iPage]);
+
+  const handleOFSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await produccionAPI.createOrden({ ...ofForm, responsable_id: user.id });
+      setShowOFModal(false);
+      setOfForm({ producto: '', cantidad: 1, fecha_inicio: '', fecha_fin: '' });
+      fetchOrdenes(oPage);
+    } catch (err) {
+      alert('Error creando orden de fabricación');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInspSubmit = async (e) => {
+    e.preventDefault();
+    if (!iForm.orden_fabricacion_id) return alert('Seleccione la Orden de Fabricación vinculada');
+    setLoading(true);
+    try {
+      await produccionAPI.createInspeccion(iForm);
+      // Auto-advance order if approved
+      if (iForm.resultado === 'APROBADO') {
+        await produccionAPI.updateEstado(iForm.orden_fabricacion_id, { estado: 'COMPLETADA' });
+      } else if (iForm.resultado === 'RECHAZADO') {
+        await produccionAPI.updateEstado(iForm.orden_fabricacion_id, { estado: 'EN_PROCESO' });
+      }
+      setShowInspModal(false);
+      setIForm({ orden_fabricacion_id: '', resultado: 'PENDIENTE', observaciones: '' });
+      fetchInspecciones(iPage);
+    } catch (err) {
+      alert('Error registrando inspección');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdvanceOF = async (of) => {
+    if (!canWrite) return;
+    const currentIdx = OF_PIPELINE.indexOf(of.estado);
+    if (currentIdx === -1 || currentIdx >= OF_PIPELINE.length - 1) return;
+    const nextState = OF_PIPELINE[currentIdx + 1];
+    if (confirm(`¿Avanzar orden ${of.folio} a fase "${nextState.replace('_', ' ')}"?`)) {
+      await produccionAPI.updateEstado(of.id, { estado: nextState });
+      fetchOrdenes(oPage);
+    }
+  };
 
   const oCols = [
     { key: 'folio', label: 'Folio', mono: true },
     { key: 'producto', label: 'Producto' },
     { key: 'cantidad', label: 'Ctd.' },
-    { key: 'responsable_nombre', label: 'Responsable' },
     { key: 'fecha_inicio', label: 'Inicio', render: formatDate },
-    { key: 'estado', label: 'Estado/Progreso', render: (v) => <PipelineVisual estado={v} /> },
+    { key: 'estado', label: 'Progreso', render: (v) => <PipelineVisual estado={v} /> },
+    { key: 'actions', label: 'Acción', render: (_, r) => {
+        const cIdx = OF_PIPELINE.indexOf(r.estado);
+        if (cIdx >= 0 && cIdx < OF_PIPELINE.length - 1) {
+          return <Button size="sm" onClick={(e) => { e.stopPropagation(); handleAdvanceOF(r); }}>Avanzar</Button>;
+        }
+        return <span style={{fontSize:'12px', color:'var(--text-tertiary)'}}>Hecho</span>;
+    }},
   ];
 
   const iCols = [
@@ -83,7 +156,7 @@ export default function Produccion() {
         <div className={`module-card ${tab === 'ordenes' ? 'active' : ''}`} onClick={() => setTab('ordenes')}>
           <div className="module-icon">🏭</div>
           <h3>Línea de Fabricación</h3>
-          <p>Control de órdenes de producción</p>
+          <p>Control de órdenes (OF)</p>
         </div>
         <div className={`module-card ${tab === 'calidad' ? 'active' : ''}`} onClick={() => setTab('calidad')}>
           <div className="module-icon">✨</div>
@@ -92,21 +165,81 @@ export default function Produccion() {
         </div>
         <div className="module-card">
           <div className="module-icon">📐</div>
-          <h3>Ingeniería</h3>
+          <h3>Ingeniería (Próximamente)</h3>
           <p>Planos y especificaciones</p>
         </div>
       </div>
 
       {tab === 'ordenes' && (
-        <Panel title="Órdenes de Fabricación" actions={canWrite && <Button variant="primary">Nueva Orden</Button>}>
-          <DataTable columns={oCols} data={ordenes} page={oPage} totalPages={oTotal} total={oTotal*10} onPageChange={setOPage} />
+        <Panel title="Órdenes de Fabricación Activas" actions={canWrite && <Button variant="primary" onClick={() => setShowOFModal(true)}>Nueva Orden (OF)</Button>}>
+          <DataTable columns={oCols} data={ordenes} page={oPage} totalPages={oTotal} total={oTotal*10} onPageChange={setOPage} onRowClick={handleAdvanceOF} />
         </Panel>
       )}
 
       {tab === 'calidad' && (
-        <Panel title="Registro de Inspecciones" actions={canWrite && <Button variant="primary">Nueva Inspección</Button>}>
+        <Panel title="Registro de Inspecciones y Auditorías" actions={canWrite && <Button variant="primary" onClick={() => setShowInspModal(true)}>Registrar Inspección</Button>}>
           <DataTable columns={iCols} data={insp} page={iPage} totalPages={iTotal} total={iTotal*10} onPageChange={setIPage} />
         </Panel>
+      )}
+
+      {/* Modals */}
+      {showOFModal && (
+        <Modal title="Emitir Órden de Fabricación" onClose={() => setShowOFModal(false)}>
+          <form onSubmit={handleOFSubmit}>
+            <div className="form-group">
+              <label className="form-label">Producto a Fabricar (Lote/SKU)</label>
+              <input type="text" className="form-input" required value={ofForm.producto} onChange={e => setOfForm({...ofForm, producto: e.target.value})} placeholder="Ej: Lote de Tubos 400x" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Cantidad Esperada</label>
+              <input type="number" className="form-input" min="1" required value={ofForm.cantidad} onChange={e => setOfForm({...ofForm, cantidad: parseInt(e.target.value) || 1})} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="form-group">
+                <label className="form-label">Fecha Planificada Inicio</label>
+                <input type="date" className="form-input" required value={ofForm.fecha_inicio} onChange={e => setOfForm({...ofForm, fecha_inicio: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Fecha Planificada Término</label>
+                <input type="date" className="form-input" required value={ofForm.fecha_fin} onChange={e => setOfForm({...ofForm, fecha_fin: e.target.value})} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={() => setShowOFModal(false)}>Cancelar</Button>
+              <Button type="submit" variant="primary" disabled={loading}>{loading ? 'Planificando...' : 'Lanzar a Planta'}</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {showInspModal && (
+        <Modal title="Auditoría / Control de Calidad" onClose={() => setShowInspModal(false)}>
+          <form onSubmit={handleInspSubmit}>
+            <div className="form-group">
+              <label className="form-label">Orden Evaluada (Fase QC)</label>
+              <select className="form-input" required value={iForm.orden_fabricacion_id} onChange={e => setIForm({...iForm, orden_fabricacion_id: e.target.value})}>
+                <option value="">-- Seleccionar OF --</option>
+                {allOrdenes.map(of => <option key={of.id} value={of.id}>{of.folio} - {of.producto}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Dictamen de Calidad</label>
+              <select className="form-input" value={iForm.resultado} onChange={e => setIForm({...iForm, resultado: e.target.value})}>
+                <option value="APROBADO">Aprobado (Pasa a Bodega)</option>
+                <option value="RECHAZADO">Rechazado (Regresa a Proceso)</option>
+                <option value="PENDIENTE">En Estudio / Pendiente</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Observaciones y Hallazgos</label>
+              <textarea className="form-input" rows={3} value={iForm.observaciones} onChange={e => setIForm({...iForm, observaciones: e.target.value})} placeholder="Detalle fallas o aciertos de tolerancia..."></textarea>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={() => setShowInspModal(false)}>Cancelar</Button>
+              <Button type="submit" variant="primary" disabled={loading}>{loading ? 'Firmando...' : 'Firmar Inspección'}</Button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   );

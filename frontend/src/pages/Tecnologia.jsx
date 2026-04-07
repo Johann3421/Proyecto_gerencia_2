@@ -74,15 +74,20 @@ export default function Tecnologia() {
       </div>
 
       <div className="tabs">
-        {['SOPORTE', 'POSTVENTA', 'DESARROLLO', 'INFRAESTRUCTURA'].map(t => (
-          <div key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); setPage(1); }}>
-            {t.charAt(0) + t.slice(1).toLowerCase()}
+        {[
+          { id: 'SOPORTE', label: 'Soporte Técnico' },
+          { id: 'POSTVENTA', label: 'Servicio PostVenta' },
+          { id: 'DESARROLLO', label: 'Desarrollo Software' },
+          { id: 'INFRAESTRUCTURA', label: 'Infraestructura Tecnológica' }
+        ].map(t => (
+          <div key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} onClick={() => { setTab(t.id); setPage(1); }}>
+            {t.label}
           </div>
         ))}
       </div>
 
       <Panel
-        title={`Registros de ${tab.charAt(0) + tab.slice(1).toLowerCase()}`}
+        title={`Registros de ${tab}`}
         actions={canWrite && <Button variant="primary" onClick={() => setShowModal(true)}>Nuevo Registro</Button>}
       >
         <DataTable

@@ -56,7 +56,7 @@ export default function Comercial() {
       fetchVentas(vPage);
       if (clientsList.length === 0) fetchClientes(1); // Ensure dropdown is populated
     }
-    if (tab === 'clientes') fetchClientes(cPage);
+    if (tab === 'atencion') fetchClientes(cPage);
   }, [tab, vPage, cPage]);
 
   const handleCliSubmit = async (e) => {
@@ -133,8 +133,10 @@ export default function Comercial() {
       </div>
 
       <div className="tabs">
-        <div className={`tab ${tab === 'ventas' ? 'active' : ''}`} onClick={() => setTab('ventas')}>Ventas y Contratos</div>
-        <div className={`tab ${tab === 'clientes' ? 'active' : ''}`} onClick={() => setTab('clientes')}>Cartera de Clientes</div>
+        <div className={`tab ${tab === 'ventas' ? 'active' : ''}`} onClick={() => setTab('ventas')}>Ventas</div>
+        <div className={`tab ${tab === 'marketing' ? 'active' : ''}`} onClick={() => setTab('marketing')}>Marketing</div>
+        <div className={`tab ${tab === 'atencion' ? 'active' : ''}`} onClick={() => setTab('atencion')}>Atención al Cliente</div>
+        <div className={`tab ${tab === 'ecommerce' ? 'active' : ''}`} onClick={() => setTab('ecommerce')}>Comercio Electrónico</div>
       </div>
 
       {tab === 'ventas' && (
@@ -143,9 +145,21 @@ export default function Comercial() {
         </Panel>
       )}
 
-      {tab === 'clientes' && (
+      {tab === 'atencion' && (
         <Panel title="Directorio de Clientes" actions={canWrite && <Button variant="primary" onClick={() => setShowCliModal(true)}>Nuevo Cliente</Button>}>
           <DataTable columns={cCols} data={clientes.filter(c => !search || c.nombre?.toLowerCase().includes(search.toLowerCase()) || c.ruc?.toLowerCase().includes(search.toLowerCase()) || c.email?.toLowerCase().includes(search.toLowerCase()))} page={cPage} totalPages={cTotal} total={cTotal*10} onPageChange={setCPage} />
+        </Panel>
+      )}
+
+      {tab === 'marketing' && (
+        <Panel title="Campaña de Marketing">
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Módulo de Marketing en desarrollo...</div>
+        </Panel>
+      )}
+
+      {tab === 'ecommerce' && (
+        <Panel title="Comercio Electrónico">
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Módulo de E-Commerce en desarrollo...</div>
         </Panel>
       )}
 

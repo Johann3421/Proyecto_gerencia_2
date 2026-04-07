@@ -33,7 +33,7 @@ function PipelineVisual({ estado }) {
 export default function Produccion() {
   const { canWrite, user } = useAuth();
   const { search } = useSearch();
-  const [tab, setTab] = useState('ordenes');
+  const [tab, setTab] = useState('fabricacion');
   
   const [ordenes, setOrdenes] = useState([]);
   const [oPage, setOPage] = useState(1);
@@ -65,7 +65,7 @@ export default function Produccion() {
   };
 
   useEffect(() => {
-    if (tab === 'ordenes') {
+    if (tab === 'fabricacion') {
       fetchOrdenes(oPage);
     } else if (tab === 'calidad') {
       fetchInspecciones(iPage);
@@ -155,24 +155,24 @@ export default function Produccion() {
       </div>
 
       <div className="module-cards">
-        <div className={`module-card ${tab === 'ordenes' ? 'active' : ''}`} onClick={() => setTab('ordenes')}>
+        <div className={`module-card ${tab === 'fabricacion' ? 'active' : ''}`} onClick={() => setTab('fabricacion')}>
           <div className="module-icon">🏭</div>
-          <h3>Línea de Fabricación</h3>
-          <p>Control de órdenes (OF)</p>
+          <h3>Fabricación</h3>
+          <p>Línea de producción (OF)</p>
         </div>
         <div className={`module-card ${tab === 'calidad' ? 'active' : ''}`} onClick={() => setTab('calidad')}>
           <div className="module-icon">✨</div>
           <h3>Control de Calidad</h3>
           <p>Inspecciones y validaciones</p>
         </div>
-        <div className="module-card">
+        <div className={`module-card ${tab === 'ingenieria' ? 'active' : ''}`} onClick={() => setTab('ingenieria')}>
           <div className="module-icon">📐</div>
-          <h3>Ingeniería (Próximamente)</h3>
+          <h3>Ingeniería de Hardware</h3>
           <p>Planos y especificaciones</p>
         </div>
       </div>
 
-      {tab === 'ordenes' && (
+      {tab === 'fabricacion' && (
         <Panel title="Órdenes de Fabricación Activas" actions={canWrite && <Button variant="primary" onClick={() => setShowOFModal(true)}>Nueva Orden (OF)</Button>}>
           <DataTable columns={oCols} data={ordenes.filter(o => !search || o.folio?.toLowerCase().includes(search.toLowerCase()) || o.producto?.toLowerCase().includes(search.toLowerCase()))} page={oPage} totalPages={oTotal} total={oTotal*10} onPageChange={setOPage} onRowClick={handleAdvanceOF} />
         </Panel>
@@ -181,6 +181,12 @@ export default function Produccion() {
       {tab === 'calidad' && (
         <Panel title="Registro de Inspecciones y Auditorías" actions={canWrite && <Button variant="primary" onClick={() => setShowInspModal(true)}>Registrar Inspección</Button>}>
           <DataTable columns={iCols} data={insp.filter(i => !search || i.orden_folio?.toLowerCase().includes(search.toLowerCase()) || i.inspector_nombre?.toLowerCase().includes(search.toLowerCase()))} page={iPage} totalPages={iTotal} total={iTotal*10} onPageChange={setIPage} />
+        </Panel>
+      )}
+
+      {tab === 'ingenieria' && (
+        <Panel title="Ingeniería de Hardware">
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Módulo de Ingeniería de Hardware en desarrollo...</div>
         </Panel>
       )}
 

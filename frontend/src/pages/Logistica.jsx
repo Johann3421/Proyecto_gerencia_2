@@ -15,7 +15,7 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('es-PE') : '-';
 export default function Logistica() {
   const { canWrite } = useAuth();
   const { search } = useSearch();
-  const [tab, setTab] = useState('inventario');
+  const [tab, setTab] = useState('compras');
   const [metrics, setMetrics] = useState({});
 
   const [prods, setProds] = useState([]);
@@ -59,7 +59,7 @@ export default function Logistica() {
   };
 
   useEffect(() => {
-    if (tab === 'inventario') fetchProds(pPage);
+    if (tab === 'inventarios') fetchProds(pPage);
     else if (tab === 'compras') fetchOcs(oPage);
     else if (tab === 'distribucion') fetchDists(dPage);
   }, [tab, pPage, oPage, dPage]);
@@ -163,12 +163,14 @@ export default function Logistica() {
       </div>
 
       <div className="tabs">
-        <div className={`tab ${tab === 'inventario' ? 'active' : ''}`} onClick={() => { setTab('inventario'); setPPage(1); }}>Inventario Maestro</div>
-        <div className={`tab ${tab === 'compras' ? 'active' : ''}`} onClick={() => { setTab('compras'); setOPage(1); }}>Órdenes de Compra</div>
-        <div className={`tab ${tab === 'distribucion' ? 'active' : ''}`} onClick={() => { setTab('distribucion'); setDPage(1); }}>Logística de Envíos</div>
+        <div className={`tab ${tab === 'compras' ? 'active' : ''}`} onClick={() => { setTab('compras'); setOPage(1); }}>Compras</div>
+        <div className={`tab ${tab === 'almacen' ? 'active' : ''}`} onClick={() => { setTab('almacen'); }}>Almacén</div>
+        <div className={`tab ${tab === 'inventarios' ? 'active' : ''}`} onClick={() => { setTab('inventarios'); setPPage(1); }}>Inventarios</div>
+        <div className={`tab ${tab === 'distribucion' ? 'active' : ''}`} onClick={() => { setTab('distribucion'); setDPage(1); }}>Distribución</div>
+        <div className={`tab ${tab === 'mantenimiento' ? 'active' : ''}`} onClick={() => { setTab('mantenimiento'); }}>Mantenimiento</div>
       </div>
 
-      {tab === 'inventario' && (
+      {tab === 'inventarios' && (
         <Panel title="Catálogo de Productos" actions={canWrite && <Button variant="primary" onClick={() => setShowProdModal(true)}>Nuevo Producto</Button>}>
           <DataTable columns={pCols} data={prods.filter(p => !search || p.nombre?.toLowerCase().includes(search.toLowerCase()) || p.sku?.toLowerCase().includes(search.toLowerCase()))} page={pPage} totalPages={pTotal} total={pTotal*10} onPageChange={setPPage} rowClassName={rowClass} />
         </Panel>
@@ -183,6 +185,18 @@ export default function Logistica() {
       {tab === 'distribucion' && (
         <Panel title="Rutas de Distribución" actions={canWrite && <Button variant="primary" onClick={() => setShowDistModal(true)}>Nueva Ruta</Button>}>
           <DataTable columns={dCols} data={dists.filter(d => !search || d.folio?.toLowerCase().includes(search.toLowerCase()) || d.destino?.toLowerCase().includes(search.toLowerCase()) || d.transportista?.toLowerCase().includes(search.toLowerCase()))} page={dPage} totalPages={dTotal} total={dTotal*10} onPageChange={setDPage} />
+        </Panel>
+      )}
+
+      {tab === 'almacen' && (
+        <Panel title="Gestión de Almacén">
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Módulo de Almacén en desarrollo...</div>
+        </Panel>
+      )}
+
+      {tab === 'mantenimiento' && (
+        <Panel title="Mantenimiento de Equipos / Flota">
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Módulo de Mantenimiento en desarrollo...</div>
         </Panel>
       )}
 

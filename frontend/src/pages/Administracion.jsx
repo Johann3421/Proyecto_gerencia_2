@@ -136,8 +136,10 @@ export default function Administracion() {
 
       <div className="tabs">
         <div className={`tab ${tab === 'finanzas' ? 'active' : ''}`} onClick={() => setTab('finanzas')}>Finanzas</div>
+        <div className={`tab ${tab === 'contabilidad' ? 'active' : ''}`} onClick={() => setTab('contabilidad')}>Contabilidad</div>
+        <div className={`tab ${tab === 'rrhh' ? 'active' : ''}`} onClick={() => setTab('rrhh')}>Recursos Humanos</div>
+        <div className={`tab ${tab === 'legales' ? 'active' : ''}`} onClick={() => setTab('legales')}>Asuntos Legales</div>
         <div className={`tab ${tab === 'tesoreria' ? 'active' : ''}`} onClick={() => setTab('tesoreria')}>Tesorería</div>
-        <div className={`tab ${tab === 'rrhh' ? 'active' : ''}`} onClick={() => setTab('rrhh')}>RRHH</div>
       </div>
 
       {tab === 'tesoreria' && (
@@ -177,6 +179,18 @@ export default function Administracion() {
             total={empTotalPages * 10}
             onPageChange={setEmpPage}
           />
+        </Panel>
+      )}
+
+      {tab === 'contabilidad' && (
+        <Panel title="Contabilidad">
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Módulo de Contabilidad en desarrollo...</div>
+        </Panel>
+      )}
+
+      {tab === 'legales' && (
+        <Panel title="Asuntos Legales">
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)' }}>Módulo de Asuntos Legales en desarrollo...</div>
         </Panel>
       )}
 

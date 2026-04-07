@@ -368,22 +368,3 @@ export default function Tecnologia() {
     </div>
   );
 }
-            <div className="form-group">
-              <label className="form-label">Nivel de Prioridad / Criticidad</label>
-              <select className="form-input" value={form.prioridad} onChange={e => setForm({...form, prioridad: e.target.value})}>
-                <option value="BAJA">Baja / Trivial</option>
-                <option value="MEDIA">Media / Estándar</option>
-                <option value="ALTA">Alta / Urgente</option>
-                <option value="CRITICA">Crítica / Bloqueante</option>
-              </select>
-            </div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
-              <Button type="button" onClick={() => setShowModal(false)}>Cancelar</Button>
-              <Button type="submit" variant="primary" disabled={loading}>{loading ? 'Guardando...' : 'Crear Registro'}</Button>
-            </div>
-          </form>
-        </Modal>
-      )}
-    </div>
-  );
-}

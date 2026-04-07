@@ -51,9 +51,8 @@ const start = async () => {
     const userCount = await query('SELECT COUNT(*) FROM usuarios');
     if (parseInt(userCount.rows[0].count) === 0) {
       console.log('📦 Primera ejecución detectada — ejecutando seed...');
-      const bcrypt = require('bcryptjs');
-      // Run seed inline
-      require('./scripts/seed');
+      const seedFunc = require('./scripts/seed');
+      await seedFunc();
     }
 
     app.listen(PORT, () => {

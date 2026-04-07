@@ -204,7 +204,9 @@ const seed = async () => {
   } catch (err) {
     console.error('❌ Error en seed:', err);
   } finally {
-    await pool.end();
+    if (require.main === module) {
+      await pool.end();
+    }
   }
 };
 
